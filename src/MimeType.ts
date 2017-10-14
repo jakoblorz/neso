@@ -1,4 +1,4 @@
-export type MimeStringType = "audio/aac" |
+export type MimeType = "audio/aac" |
 "application/x-abiword" |
 "application/octet-stream" |
 "video/x-msvideo" |
