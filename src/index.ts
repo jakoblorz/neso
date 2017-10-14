@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
+import { FormatError, ServerError } from "./HttpErrors";
 import { CallbackGuardMethodType } from "./types/CallbackGuardMethodType";
 import { CallbackOperationErrorType } from "./types/CallbackOperationErrorType";
 import { CallbackOperationTransactionType } from "./types/CallbackOperationTransactionType";
@@ -8,11 +9,6 @@ import { MimeStringType } from "./types/MimeStringType";
 import { MimeStringTypeSerializer } from "./types/MimeStringTypeSerializer";
 import { MimeStringTypeSerializerAssociation } from "./types/MimeStringTypeSerializerAssociation";
 import { WrappedCallbackOperationType } from "./types/WrappedCallbackOperationType";
-
-export const FormatError: CallbackOperationErrorType = { code: 400, status: "Format Error" };
-export const NotFoundError: CallbackOperationErrorType = { code: 404, status: "Not Found Error" };
-export const ForbiddenError: CallbackOperationErrorType = { code: 403, status: "Forbidden Error" };
-export const ServerError: CallbackOperationErrorType = { code: 500, status: "Server Error" };
 
 /**
  * respond to a request with custom data
