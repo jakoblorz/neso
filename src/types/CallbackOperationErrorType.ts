@@ -1,1 +1,1 @@
-export type CallbackOperationErrorType = { status: number, status_text: string };
+export type CallbackOperationErrorType = { code: number, status: string };
