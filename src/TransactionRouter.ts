@@ -103,6 +103,19 @@ export class TransactionRouter {
     }
 
     /**
+     * build
+     */
+    public build(): ExpressRouter {
+
+        for (const route of this.routes) {
+            const method = this.typeMethodDictionary[route.type];
+            (this.router as any)[method](route.url, route.callback);
+        }
+
+        return this.router;
+    }
+
+    /**
      * use<RequestType, ResponseType>
      */
     public use<RequestType, ResponseType>(
