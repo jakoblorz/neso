@@ -283,24 +283,41 @@ export class Router {
         build: LowHttpRequestBuilder<RequestType>,
         callback: LowHttpCallbackFactory) {
 
+            // indicate if there is at least one other route
+            // registration with the same name which would
+            // violate the unique name constraint
             const isDuplicateNameRoute = this.routes
                 .filter((r) => r.name === name).length > 0;
 
+            // throw an error if there is a unique name
+            // constraint violation
             if (isDuplicateNameRoute) {
                 throw new Error("duplicate name found: " + name + " was already loaded");
             }
 
+            // indicate if there is at least one other route
+            // registration with the same url and type, which
+            // would violate the unique url-type association constraint
             const isDuplicateUrlTypeRoute = this.routes
                 .filter((r) => r.url === url && r.type === type).length > 0;
 
+            // throw an error if there is a unique url-type
+            // association violation
             if (isDuplicateUrlTypeRoute) {
                 throw new Error("duplicate url found: combination " + url + " and '" + type + "' was already loaded");
             }
 
+            // invoke the factory callback (callback) with the type, the serializers
+            // and the next-behavior flag invokeNextOnError
             const operation = callback(this.serializers, type, this.invokeNextOnError);
+
+            // build the async expressjs callback from the newly generated
+            // operation function
             const expressCallback = async (req: Request, res: Response, next: NextFunction) =>
                 await operation(build(req), req, res, next);
 
+            // there is no constraint violation and the callbacks were generated
+            // successfully, push the route to the route list
             this.routes.push(({ callback: expressCallback, name, type, url }));
     }
 }
