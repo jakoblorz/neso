@@ -1,11 +1,11 @@
 import { NextFunction, Request, Response, Router as ExpressRouter, RouterOptions } from "express";
-import { MimeType } from "./mime";
 
 /* type aliases */
 export type LowHttpError = { code: number, status: string };
-export type MimeType = MimeType;
+export type LowHttpMimeType =  "application/json" | "application/javascript" |
+    "text/plain" | "text/html" | "text/css" | "text/csv";
 export type LowHttpSerializer<X> = (object: X) => string;
-export type LowHttpSerializerMimeTuple<X> = { serializer: LowHttpSerializer<X>, mime: MimeType };
+export type LowHttpSerializerMimeTuple<X> = { serializer: LowHttpSerializer<X>, mime: LowHttpMimeType };
 export type LowHttpGuardMethod<X> = (object: X | any) => object is X;
 export type LowHttpCallback<X, Y> = (object: X) => Y | Promise<Y> |
     LowHttpError | Promise<LowHttpError> | Promise<Y | LowHttpError>;
@@ -35,7 +35,7 @@ export const ServerError: LowHttpError = { code: 500, status: "Server Error" };
  */
 export const send = <X>(
     body: X, serializer: LowHttpSerializer<X>,
-    mime: MimeType, status: number, res: Response) => {
+    mime: LowHttpMimeType, status: number, res: Response) => {
 
     res.setHeader("Content-Type", mime + "; charset=utf-8");
     res.status(status).send(serializer(body));
@@ -51,7 +51,7 @@ export const send = <X>(
  */
 export const module = <RequestType extends {}, ResponseType>(
     guard: LowHttpGuardMethod<RequestType>, callback: LowHttpCallback<RequestType, ResponseType>,
-    mime: MimeType = "application/json"): LowHttpCallbackFactory => {
+    mime: LowHttpMimeType = "application/json"): LowHttpCallbackFactory => {
 
         // return a factory function which will select the correct serializer
         return (serializers: Array<LowHttpSerializerMimeTuple<any>>, type: LowHttpCallbackType,
