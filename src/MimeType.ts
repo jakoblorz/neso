@@ -1,4 +1,7 @@
-export type MimeType = "audio/aac" |
+export type MimeType = "application/json" | "application/javascript" |
+    "text/plain" | "text/html" | "text/css" | "text/csv";
+
+/*export type MimeType = "audio/aac" |
 "application/x-abiword" |
 "application/octet-stream" |
 "video/x-msvideo" |
@@ -59,4 +62,4 @@ export type MimeType = "audio/aac" |
 "audio/3gpp" |
 "video/3gpp2" |
 "audio/3gpp2" |
-"application/x-7z-compressed";
+"application/x-7z-compressed";*/
