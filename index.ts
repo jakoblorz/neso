@@ -187,58 +187,58 @@ export class NesoRouter {
     }
 
     /**
-     * create<RequestType>
+     * create<RequestType, ResponseType>
      */
-    public create<RequestType>(
+    public create<RequestType, ResponseType>(
         url: string,
         name: string,
-        build: NesoRequestConstructor<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
-            this.hook("create", url, name, build, callback);
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>) {
+            this.hook("create", "endpoint", url, name, construct, callback);
     }
 
     /**
-     * read<RequestType>
+     * read<RequestType, ResponseType>
      */
-    public read<RequestType>(
+    public read<RequestType, ResponseType>(
         url: string,
         name: string,
-        build: NesoRequestConstructor<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
-            this.hook("read", url, name, build, callback);
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>) {
+            this.hook("read", "endpoint", url, name, construct, callback);
     }
 
     /**
-     * update<RequestType>
+     * update<RequestType, ResponseType>
      */
-    public update<RequestType>(
+    public update<RequestType, ResponseType>(
         url: string,
         name: string,
-        build: NesoRequestConstructor<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
-            this.hook("update", url, name, build, callback);
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>) {
+            this.hook("update", "endpoint", url, name, construct, callback);
     }
 
     /**
-     * delete<RequestType>
+     * delete<RequestType, ResponseType>
      */
-    public delete<RequestType>(
+    public delete<RequestType, ResponseType>(
         url: string,
         name: string,
-        build: NesoRequestConstructor<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
-            this.hook("delete", url, name, build, callback);
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>) {
+            this.hook("delete", "endpoint", url, name, construct, callback);
     }
 
     /**
-     * exist<RequestType>
+     * exist<RequestType, ResponseType>
      */
-    public exist<RequestType>(
+    public exist<RequestType, ResponseType>(
         url: string,
         name: string,
-        build: NesoRequestConstructor<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
-            this.hook("exist", url, name, build, callback);
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>) {
+            this.hook("exist", "endpoint", url, name, construct, callback);
     }
 
     /**
