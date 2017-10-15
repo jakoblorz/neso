@@ -15,6 +15,8 @@ export type LowHttpCallbackFactory =
         (object: any, req: Request, res: Response, next: NextFunction) => void;
 export type LowHttpRequestBuilder<X> = (req: Request) => X;
 export type LowHttpExpressJSCallback = (req: Request, res: Response, next: NextFunction) => void;
+export type LowHttpCallbackAlias =
+    { callback: LowHttpExpressJSCallback, name: string, url: string, type: LowHttpCallbackType };
 
 /* error definitions */
 export const FormatError: LowHttpError = { code: 400, status: "Format Error" };
@@ -144,3 +146,17 @@ export const express = <RequestType>(
         return async (req: Request, res: Response, next: NextFunction) =>
             await operation(build(req), req, res, next);
     };
+
+/**
+ * create a alias representation of a single expressjs callback
+ * @param type specify the type of operation
+ * @param name provide a unique name for this operation
+ * @param url specify the unique expressjs url for this operation
+ * @param callback expressjs callback
+ */
+export const alias = <RequestType>(
+    type: LowHttpCallbackType,
+    name: string,
+    url: string,
+    callback: LowHttpExpressJSCallback): LowHttpCallbackAlias =>
+        ({ name, callback, url, type });
