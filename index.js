@@ -60,7 +60,7 @@ exports.send = function (body, serializer, mime, status, res) {
  * @param guard function to validate that the request object is one of
  * type RequestType
  * @param callback function that will be invoked with the request object,
- * can return ResponseType, LowHttpError or both as promise
+ * can return ResponseType, NesoError or both as promise
  * @param mime signal which mime type will be used
  */
 exports.module = function (guard, callback, mime) {
@@ -110,7 +110,7 @@ exports.module = function (guard, callback, mime) {
                         }
                         // if an error occured and the response object (which is the error object
                         // in this case), contains the code and status key, the error is expected
-                        // the been thrown on purpose, following the LowHttpError Type
+                        // the been thrown on purpose, following the NesoError Type
                         // (like throw NotFoundError) - encode the error as JSON in this case
                         // and respond with it
                         if (executionThrewError && "code" in response && "status" in response) {
@@ -129,41 +129,6 @@ exports.module = function (guard, callback, mime) {
         }); };
     };
 };
-/**
- * wrap the callback factory from the wrap() function into an expressjs callback
- * @param type specify the type of operation that will be executed
- * @param build provide a callback which will loosely collect all necessary data
- * from the express request object required for the operation
- * @param callback operation callback factory
- * @param serializers all loaded serializers that can be used
- * @param invokeNextOnError flag to change call flow - true will invoke the next
- * callback if an error occured instead of responding with the error or a custom
- * server error. The next function will be invoked with the error as argument
- */
-exports.express = function (type, build, callback, serializers, invokeNextOnError) {
-    if (invokeNextOnError === void 0) { invokeNextOnError = false; }
-    // invoke the factory to build the operation callback
-    var operation = callback(serializers, type, invokeNextOnError);
-    // return an expressjs callback, which build the request object
-    // losely and then invokes the operation callback with this req
-    // object
-    return function (req, res, next) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, operation(build(req), req, res, next)];
-            case 1: return [2 /*return*/, _a.sent()];
-        }
-    }); }); };
-};
-/**
- * create a alias representation of a single expressjs callback
- * @param type specify the type of operation
- * @param name provide a unique name for this operation
- * @param url specify the unique expressjs url for this operation
- * @param callback expressjs callback
- */
-exports.alias = function (type, name, url, callback) {
-    return ({ name: name, callback: callback, url: url, type: type });
-};
 var Router = /** @class */ (function () {
     /**
      * create a new router
@@ -181,13 +146,13 @@ var Router = /** @class */ (function () {
          */
         this.routes = [];
         /**
-         * kv-translation of LowHttpCallbackType to HttpMethod
+         * kv-translation of NesoCallbackType to HttpMethod
          */
         this.typeMethodDictionary = {};
         // initialize the expressjs router
         this.router = express_1.Router(options);
         this.serializers = serializers;
-        // load all LowHttpCallbackType to HttpMethod translations
+        // load all NesoCallbackType to HttpMethod translations
         this.typeMethodDictionary.create = "post";
         this.typeMethodDictionary.read = "get";
         this.typeMethodDictionary.update = "put";

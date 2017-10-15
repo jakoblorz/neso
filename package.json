@@ -1,5 +1,5 @@
 {
-  "name": "lowhttp",
+  "name": "neso",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jakoblorz/lowhttp.git"
+    "url": "git+https://github.com/jakoblorz/neso.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/jakoblorz/lowhttp/issues"
+    "url": "https://github.com/jakoblorz/neso/issues"
   },
-  "homepage": "https://github.com/jakoblorz/lowhttp#readme",
+  "homepage": "https://github.com/jakoblorz/neso#readme",
   "dependencies": {
     "body-parser": "^1.18.2",
     "es6-promise": "^4.1.1",
