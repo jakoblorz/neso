@@ -64,8 +64,6 @@ exports.module = function (guard, callback, mime) {
                     case 0:
                         // check if the recieved request object contains the required keys
                         if (!guard(object)) {
-                            // tslint:disable-next-line:no-console
-                            console.log(guard(object));
                             // request does not contain the necessary keys, respond with a JSON-encoded
                             // Format Error
                             http_1.send(error_1.FormatError, JSON.stringify, "application/json", error_1.FormatError.code, res);

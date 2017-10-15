@@ -205,7 +205,7 @@ export class TransactionRouter {
     public build(): ExpressRouter {
 
         for (const route of this.routes) {
-            const method = this.typeMethodDictionary[route.type];
+            const method = this.typeMethodDictionary[route.method];
             (this.router as any)[method](route.url, route.callback);
         }
 
