@@ -6,7 +6,7 @@ export type LowHttpError = { code: number, status: string };
 export type MimeType = MimeType;
 export type LowHttpSerializer<X> = (object: X) => string;
 export type LowHttpSerializerMimeTuple<X> = { serializer: LowHttpSerializer<X>, mime: MimeType };
-export type LowHttpGuardMethod<X> = (object: X) => object is X;
+export type LowHttpGuardMethod<X> = (object: X | any) => object is X;
 export type LowHttpCallback<X, Y> = (object: X) => Y | Promise<Y> |
     LowHttpError | Promise<LowHttpError> | Promise<Y | LowHttpError>;
 export type LowHttpCallbackType = "create" | "read" | "update" | "delete" | "exist";
