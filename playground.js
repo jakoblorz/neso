@@ -13,7 +13,7 @@ var hash = function (payload) {
 var PasswordHashFactory = _1.module(function (data) {
     return "username" in data && data.username && "password" in data && data.password;
 }, function (object) { return hash(object.password); });
-var router = new _1.NesoRouter(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
+var router = new _1.Router(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
 router.create("/", "", function (req) {
     return ({ password: req.body.password, username: req.query.user });
 }, PasswordHashFactory);
