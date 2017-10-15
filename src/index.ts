@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, Response, Router as ExpressRouter, RouterOptions } from "express";
 import { MimeType } from "./mime";
 
 /* type aliases */
@@ -160,3 +160,66 @@ export const alias = <RequestType>(
     url: string,
     callback: LowHttpExpressJSCallback): LowHttpCallbackAlias =>
         ({ name, callback, url, type });
+
+export class Router {
+
+
+    public invokeNextOnError: boolean = false;
+
+    /**
+     * underlying expressjs router
+     */
+    private router: ExpressRouter;
+
+    /**
+     * list of all routes in this router
+     */
+    private routes: LowHttpCallbackAlias[];
+
+    /**
+     * list of all serializers for the mime types hosted in this router
+     */
+    private serializers: Array<LowHttpSerializerMimeTuple<any>>;
+
+    /**
+     * create a new router
+     * @param options expressjs router options
+     */
+    constructor(options: RouterOptions | undefined, serializers: Array<LowHttpSerializerMimeTuple<any>>) {
+        this.router = ExpressRouter(options);
+        this.routes = [];
+        this.serializers = serializers;
+    }
+
+    public hook<RequestType>(
+        type: LowHttpCallbackType,
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+
+            // TODO: filter errornous hooks
+
+            const isDuplicateNameRoute = this.routes
+                .filter((r) => r.name === name).length > 0;
+
+            const isDuplicateUrlTypeRoute = this.routes
+                .filter((r) => r.url === url && r.type === type).length > 0;
+
+            const operation = callback(this.serializers, type, this.invokeNextOnError);
+            const expressCallback = async (req: Request, res: Response, next: NextFunction) =>
+                await operation(build(req), req, res, next);
+
+            this.routes.push(({ callback: expressCallback, name, type, url }));
+
+            // TODO: add router route
+    }
+
+    public create<RequestType>(
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+            this.hook("create", url, name, build, callback);
+    }
+}
