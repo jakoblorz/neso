@@ -49,7 +49,7 @@ export const send = <X>(
  * can return ResponseType, LowHttpError or both as promise
  * @param mime signal which mime type will be used
  */
-export const wrap = <RequestType extends {}, ResponseType>(
+export const module = <RequestType extends {}, ResponseType>(
     guard: LowHttpGuardMethod<RequestType>, callback: LowHttpCallback<RequestType, ResponseType>,
     mime: MimeType = "application/json"): LowHttpCallbackFactory => {
 
