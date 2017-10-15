@@ -10,6 +10,11 @@ export type LowHttpGuardMethod<X> = (object: X) => object is X;
 export type LowHttpCallback<X, Y> = (object: X) => Y | Promise<Y> |
     LowHttpError | Promise<LowHttpError> | Promise<Y | LowHttpError>;
 export type LowHttpCallbackType = "create" | "read" | "update" | "delete" | "exist";
+export type LowHttpCallbackFactory =
+    (serializers: Array<LowHttpSerializerMimeTuple<any>>, type: LowHttpCallbackType, invokeNextOnError: boolean) =>
+        (object: any, req: Request, res: Response, next: NextFunction) => void;
+export type LowHttpRequestBuilder<X> = (req: Request) => X;
+export type LowHttpExpressJSCallback = (req: Request, res: Response, next: NextFunction) => void;
 
 /* error definitions */
 export const FormatError: LowHttpError = { code: 400, status: "Format Error" };
@@ -44,7 +49,7 @@ export const send = <X>(
  */
 export const wrap = <RequestType extends {}, ResponseType>(
     guard: LowHttpGuardMethod<RequestType>, callback: LowHttpCallback<RequestType, ResponseType>,
-    mime: MimeType = "application/json") => {
+    mime: MimeType = "application/json"): LowHttpCallbackFactory => {
 
         // return a factory function which will select the correct serializer
         return (serializers: Array<LowHttpSerializerMimeTuple<any>>, type: LowHttpCallbackType,
@@ -111,3 +116,31 @@ export const wrap = <RequestType extends {}, ResponseType>(
                     };
         };
 };
+
+/**
+ * wrap the callback factory from the wrap() function into an expressjs callback
+ * @param type specify the type of operation that will be executed
+ * @param build provide a callback which will loosely collect all necessary data
+ * from the express request object required for the operation
+ * @param callback operation callback factory
+ * @param serializers all loaded serializers that can be used
+ * @param invokeNextOnError flag to change call flow - true will invoke the next
+ * callback if an error occured instead of responding with the error or a custom
+ * server error. The next function will be invoked with the error as argument
+ */
+export const express = <RequestType>(
+    type: LowHttpCallbackType,
+    build: LowHttpRequestBuilder<RequestType>,
+    callback: LowHttpCallbackFactory,
+    serializers: Array<LowHttpSerializerMimeTuple<any>>,
+    invokeNextOnError: boolean = false): LowHttpExpressJSCallback => {
+
+        // invoke the factory to build the operation callback
+        const operation = callback(serializers, type, invokeNextOnError);
+
+        // return an expressjs callback, which build the request object
+        // losely and then invokes the operation callback with this req
+        // object
+        return async (req: Request, res: Response, next: NextFunction) =>
+            await operation(build(req), req, res, next);
+    };
