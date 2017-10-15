@@ -268,10 +268,10 @@ export class Router {
      */
     public build() {
 
-        this.routes.forEach((route) => {
+        for (const route of this.routes) {
             const method = this.typeMethodDictionary[route.type];
             (this.router as any)[method](route.url, route.callback);
-        });
+        }
 
         return this.router;
     }
