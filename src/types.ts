@@ -24,7 +24,7 @@ export type GuardCallback<TargetType> = (object: TargetType | any) => object is 
 export type TransactionCallback<SourceType, TargetType> = (object: SourceType) =>
     TargetType | Promise<TargetType> | IError | Promise<IError> | Promise<TargetType | IError>;
 
-export type TransactionCallbackMethod = "create" | "read" | "update" | "delete" | "exist";
+export type TransactionCallbackMethod = "create" | "read" | "update" | "delete";
 export type TransactionCallbackType = "middleware" | "endpoint";
 
 export type SourceTransactionCallback<SourceType, TargetType> =
