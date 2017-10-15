@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { MimeType } from "./MimeType";
+import { MimeType } from "./mime";
 
 /* type aliases */
 export type LowHttpError = { code: number, status: string };
