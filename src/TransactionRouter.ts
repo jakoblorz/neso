@@ -194,6 +194,10 @@ export class TransactionRouter {
                 // tslint:disable-next-line:no-empty
                 try { await destruct(result, req); } catch (e) { }
             }
+
+            if (type === "middleware") {
+                next();
+            }
         };
 
         // there is no constraint violation, the callbacks were all generated
