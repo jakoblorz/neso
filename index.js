@@ -237,23 +237,39 @@ var Router = /** @class */ (function () {
     };
     Router.prototype.hook = function (type, url, name, build, callback) {
         var _this = this;
+        // indicate if there is at least one other route
+        // registration with the same name which would
+        // violate the unique name constraint
         var isDuplicateNameRoute = this.routes
             .filter(function (r) { return r.name === name; }).length > 0;
+        // throw an error if there is a unique name
+        // constraint violation
         if (isDuplicateNameRoute) {
             throw new Error("duplicate name found: " + name + " was already loaded");
         }
+        // indicate if there is at least one other route
+        // registration with the same url and type, which
+        // would violate the unique url-type association constraint
         var isDuplicateUrlTypeRoute = this.routes
             .filter(function (r) { return r.url === url && r.type === type; }).length > 0;
+        // throw an error if there is a unique url-type
+        // association violation
         if (isDuplicateUrlTypeRoute) {
             throw new Error("duplicate url found: combination " + url + " and '" + type + "' was already loaded");
         }
+        // invoke the factory callback (callback) with the type, the serializers
+        // and the next-behavior flag invokeNextOnError
         var operation = callback(this.serializers, type, this.invokeNextOnError);
+        // build the async expressjs callback from the newly generated
+        // operation function
         var expressCallback = function (req, res, next) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0: return [4 /*yield*/, operation(build(req), req, res, next)];
                 case 1: return [2 /*return*/, _a.sent()];
             }
         }); }); };
+        // there is no constraint violation and the callbacks were generated
+        // successfully, push the route to the route list
         this.routes.push(({ callback: expressCallback, name: name, type: type, url: url }));
     };
     return Router;

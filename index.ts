@@ -10,9 +10,9 @@ export type LowHttpGuardMethod<X> = (object: X | any) => object is X;
 export type LowHttpCallback<X, Y> = (object: X) => Y | Promise<Y> |
     LowHttpError | Promise<LowHttpError> | Promise<Y | LowHttpError>;
 export type LowHttpCallbackType = "create" | "read" | "update" | "delete" | "exist";
-export type LowHttpCallbackFactory =
+export type LowHttpCallbackFactory<X> =
     (serializers: Array<LowHttpSerializerMimeTuple<any>>, type: LowHttpCallbackType, invokeNextOnError: boolean) =>
-        (object: any, req: Request, res: Response, next: NextFunction) => void;
+        (object: X, req: Request, res: Response, next: NextFunction) => void;
 export type LowHttpRequestBuilder<X> = (req: Request) => X;
 export type LowHttpExpressJSCallback = (req: Request, res: Response, next: NextFunction) => void;
 export type LowHttpCallbackAlias =
@@ -51,7 +51,7 @@ export const send = <X>(
  */
 export const module = <RequestType extends {}, ResponseType>(
     guard: LowHttpGuardMethod<RequestType>, callback: LowHttpCallback<RequestType, ResponseType>,
-    mime: LowHttpMimeType = "application/json"): LowHttpCallbackFactory => {
+    mime: LowHttpMimeType = "application/json"): LowHttpCallbackFactory<RequestType> => {
 
         // return a factory function which will select the correct serializer
         return (serializers: Array<LowHttpSerializerMimeTuple<any>>, type: LowHttpCallbackType,
@@ -63,7 +63,7 @@ export const module = <RequestType extends {}, ResponseType>(
                         .filter((s) => s.mime === mime)[0].serializer || JSON.stringify;
 
                     // result of the factory function is a expressjs styled handler
-                    return async (object: any, req: Request, res: Response, next: NextFunction) => {
+                    return async (object: RequestType, req: Request, res: Response, next: NextFunction) => {
 
                         // check if the recieved request object contains the required keys
                         if (!guard(object)) {
@@ -119,48 +119,6 @@ export const module = <RequestType extends {}, ResponseType>(
         };
 };
 
-/**
- * wrap the callback factory from the wrap() function into an expressjs callback
- * @param type specify the type of operation that will be executed
- * @param build provide a callback which will loosely collect all necessary data
- * from the express request object required for the operation
- * @param callback operation callback factory
- * @param serializers all loaded serializers that can be used
- * @param invokeNextOnError flag to change call flow - true will invoke the next
- * callback if an error occured instead of responding with the error or a custom
- * server error. The next function will be invoked with the error as argument
- */
-export const express = <RequestType>(
-    type: LowHttpCallbackType,
-    build: LowHttpRequestBuilder<RequestType>,
-    callback: LowHttpCallbackFactory,
-    serializers: Array<LowHttpSerializerMimeTuple<any>>,
-    invokeNextOnError: boolean = false): LowHttpExpressJSCallback => {
-
-        // invoke the factory to build the operation callback
-        const operation = callback(serializers, type, invokeNextOnError);
-
-        // return an expressjs callback, which build the request object
-        // losely and then invokes the operation callback with this req
-        // object
-        return async (req: Request, res: Response, next: NextFunction) =>
-            await operation(build(req), req, res, next);
-    };
-
-/**
- * create a alias representation of a single expressjs callback
- * @param type specify the type of operation
- * @param name provide a unique name for this operation
- * @param url specify the unique expressjs url for this operation
- * @param callback expressjs callback
- */
-export const alias = <RequestType>(
-    type: LowHttpCallbackType,
-    name: string,
-    url: string,
-    callback: LowHttpExpressJSCallback): LowHttpCallbackAlias =>
-        ({ name, callback, url, type });
-
 export class Router {
 
     /**
@@ -215,7 +173,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
             this.hook("create", url, name, build, callback);
     }
 
@@ -226,7 +184,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
             this.hook("read", url, name, build, callback);
     }
 
@@ -237,7 +195,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
             this.hook("update", url, name, build, callback);
     }
 
@@ -248,7 +206,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
             this.hook("delete", url, name, build, callback);
     }
 
@@ -259,7 +217,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
             this.hook("exist", url, name, build, callback);
     }
 
@@ -281,7 +239,7 @@ export class Router {
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
+        callback: LowHttpCallbackFactory<RequestType>) {
 
             // indicate if there is at least one other route
             // registration with the same name which would
