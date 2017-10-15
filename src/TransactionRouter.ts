@@ -55,7 +55,62 @@ export class TransactionRouter {
         this.typeMethodDictionary.delete = "delete";
         this.typeMethodDictionary.exist = "head";
         this.typeMethodDictionary.all = "all";
+    }
 
+    /**
+     * create<RequestType, ResponseType>
+     */
+    public create<RequestType, ResponseType>(
+        url: string,
+        name: string,
+        construct: SourceTypeConstructor<RequestType>,
+        callback: SourceTransactionCallbackFactory<RequestType, ResponseType>) {
+            this.route("create", "endpoint", url, name, construct, callback);
+    }
+
+    /**
+     * read<RequestType, ResponseType>
+     */
+    public read<RequestType, ResponseType>(
+        url: string,
+        name: string,
+        construct: SourceTypeConstructor<RequestType>,
+        callback: SourceTransactionCallbackFactory<RequestType, ResponseType>) {
+            this.route("read", "endpoint", url, name, construct, callback);
+    }
+
+    /**
+     * update<RequestType, ResponseType>
+     */
+    public update<RequestType, ResponseType>(
+        url: string,
+        name: string,
+        construct: SourceTypeConstructor<RequestType>,
+        callback: SourceTransactionCallbackFactory<RequestType, ResponseType>) {
+            this.route("update", "endpoint", url, name, construct, callback);
+    }
+
+    /**
+     * delete<RequestType, ResponseType>
+     */
+    public delete<RequestType, ResponseType>(
+        url: string,
+        name: string,
+        construct: SourceTypeConstructor<RequestType>,
+        callback: SourceTransactionCallbackFactory<RequestType, ResponseType>) {
+            this.route("delete", "endpoint", url, name, construct, callback);
+    }
+
+    /**
+     * use<RequestType, ResponseType>
+     */
+    public use<RequestType, ResponseType>(
+        url: string,
+        method: TransactionCallbackMethod | "all",
+        construct: SourceTypeConstructor<RequestType>,
+        callback: SourceTransactionCallbackFactory<RequestType, ResponseType>,
+        destruct: TargetTypeDestructor<ResponseType>) {
+            this.route(method, "middleware", url, "", construct, callback, destruct);
     }
 
     private route<RequestType, ResponseType>(
@@ -65,7 +120,7 @@ export class TransactionRouter {
         name: string,
         construct: SourceTypeConstructor<RequestType>,
         callback: SourceTransactionCallbackFactory<RequestType, ResponseType>,
-        destruct: TargetTypeDestructor<ResponseType>) {
+        destruct?: TargetTypeDestructor<ResponseType>) {
 
         // endpoint routes have some constraints that need to be met
         if (type === "endpoint") {
