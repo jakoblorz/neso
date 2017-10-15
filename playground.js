@@ -10,7 +10,9 @@ var hash = function (payload) {
     var salt = crypto.randomBytes(Math.ceil(64 / 2)).toString("hex").slice(0, 64);
     return { salt: salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
 };
-var PasswordHashFactory = _1.module(function (data) { return "username" in data && "password" in data; }, function (object) { return hash(object.password); });
+var PasswordHashFactory = _1.module(function (data) {
+    return "username" in data && data.username && "password" in data && data.password;
+}, function (object) { return hash(object.password); });
 var router = new _1.NesoRouter(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
 router.create("/", "", function (req) {
     return ({ password: req.body.password, username: req.query.user });

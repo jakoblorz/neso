@@ -86,7 +86,11 @@ exports.module = function (guard, callback, mime) {
                             // Format Error
                             return [2 /*return*/, exports.send(exports.FormatError, JSON.stringify, "application/json", exports.FormatError.code, res)];
                         }
-                        response = exports.ServerError;
+                        // tslint:disable-next-line:no-console
+                        console.log(guard(object));
+                        // tslint:disable-next-line:no-console
+                        console.log(object);
+                        response = exports.FormatError;
                         executionThrewError = false;
                         _a.label = 1;
                     case 1:
@@ -103,8 +107,12 @@ exports.module = function (guard, callback, mime) {
                         // the error flag to true
                         executionThrewError = true;
                         response = e_1;
+                        // tslint:disable-next-line:no-console
+                        console.log(e_1);
                         return [3 /*break*/, 4];
                     case 4:
+                        // tslint:disable-next-line:no-console
+                        console.log(executionThrewError);
                         // if an error occured and next-callback should be invoked,
                         // do it right here
                         if (executionThrewError && invokeNextOnError) {
@@ -121,7 +129,9 @@ exports.module = function (guard, callback, mime) {
                         // if an error occured and was not processed yet, the error must be something
                         // more concerning - respond with an JSON encoded general ServerError (http error code: 500)
                         if (executionThrewError) {
-                            return [2 /*return*/, exports.send(exports.ServerError, JSON.stringify, "application/json", exports.ServerError.code, res)];
+                            // tslint:disable-next-line:no-console
+                            console.log("threw error");
+                            return [2 /*return*/, exports.send(response, JSON.stringify, "application/json", exports.ServerError.code, res)];
                         }
                         // no error occured
                         // if the callback is one of an endpoint respond with the response

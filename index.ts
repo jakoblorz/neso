@@ -87,7 +87,7 @@ export const module = <RequestType extends {}, ResponseType>(
 
                         // prepare a response object which will default to a ServerError (http error code: 500);
                         // prepare a error flag
-                        let response: ResponseType | NesoError | any = ServerError;
+                        let response: ResponseType | NesoError | any = FormatError;
                         let executionThrewError: boolean = false;
 
                         try {
@@ -100,7 +100,6 @@ export const module = <RequestType extends {}, ResponseType>(
                             // the error flag to true
                             executionThrewError = true;
                             response = e;
-
                         }
 
                         // if an error occured and next-callback should be invoked,

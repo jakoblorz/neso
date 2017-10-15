@@ -15,7 +15,8 @@ type CreatePasswordHashRequest = { username: string, password: string };
 type CreatePasswordHashResponse = { hash: string, salt: string };
 
 const PasswordHashFactory = module<CreatePasswordHashRequest, CreatePasswordHashResponse>(
-    (data: any): data is CreatePasswordHashRequest => "username" in data && "password" in data,
+    (data: any): data is CreatePasswordHashRequest =>
+        "username" in data && data.username && "password" in data && data.password,
     (object: CreatePasswordHashRequest) => hash(object.password));
 
 const router = new NesoRouter(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
