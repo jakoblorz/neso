@@ -5,18 +5,28 @@ export type NesoError = { code: number, status: string };
 export type NesoMimeType =  "application/json" | "application/javascript" |
     "text/plain" | "text/html" | "text/css" | "text/csv";
 export type NesoSerializer<X> = (object: X) => string;
-export type NesoSerializerMimeTuple<X> = { serializer: NesoSerializer<X>, mime: NesoMimeType };
-export type NesoGuardMethod<X> = (object: X | any) => object is X;
+export type NesoMimeSerializer<X> = { serializer: NesoSerializer<X>, mime: NesoMimeType };
+export type NesoGuard<X> = (object: X | any) => object is X;
 export type NesoCallback<X, Y> = (object: X) => Y | Promise<Y> |
     NesoError | Promise<NesoError> | Promise<Y | NesoError>;
 export type NesoCallbackType = "create" | "read" | "update" | "delete" | "exist";
-export type NesoCallbackFactory<X> =
-    (serializers: Array<NesoSerializerMimeTuple<any>>, type: NesoCallbackType, invokeNextOnError: boolean) =>
-        (object: X, req: Request, res: Response, next: NextFunction) => void;
-export type NesoRequestBuilder<X> = (req: Request) => X;
+export type NesoCallbackKind = "middleware" | "endpoint";
+export type NesoCallbackFactory<X, Y> = (
+    serializers: Array<NesoMimeSerializer<any>>,
+    type: NesoCallbackType,
+    kind: NesoCallbackKind,
+    invokeNextOnError: boolean) =>
+        (object: X, req: Request, res: Response, next: NextFunction) => Promise<Y> | Y | void;
+export type NesoRequestConstructor<X> = (req: Request) => Promise<X> | X;
+export type NesoResponseDestructor<X> = (response: X, req: Request) => Promise<void> | void;
 export type NesoExpressJSCallback = (req: Request, res: Response, next: NextFunction) => void;
-export type NesoCallbackAlias =
-    { callback: NesoExpressJSCallback, name: string, url: string, type: NesoCallbackType };
+export type NesoCallbackAlias = {
+    kind: NesoCallbackKind;
+    callback: NesoExpressJSCallback;
+    name: string;
+    url: string;
+    type: NesoCallbackType
+};
 
 /* error definitions */
 export const FormatError: NesoError = { code: 400, status: "Format Error" };
@@ -37,9 +47,11 @@ export const send = <X>(
     body: X, serializer: NesoSerializer<X>,
     mime: NesoMimeType, status: number, res: Response) => {
 
-    res.setHeader("Content-Type", mime + "; charset=utf-8");
-    res.status(status).send(serializer(body));
-};
+        if (res.finished !== true) {
+            res.setHeader("Content-Type", mime + "; charset=utf-8");
+            res.status(status).end(serializer(body));
+        }
+    };
 
 /**
  * create a wrapped and guarded callback
@@ -50,12 +62,12 @@ export const send = <X>(
  * @param mime signal which mime type will be used
  */
 export const module = <RequestType extends {}, ResponseType>(
-    guard: NesoGuardMethod<RequestType>, callback: NesoCallback<RequestType, ResponseType>,
-    mime: NesoMimeType = "application/json"): NesoCallbackFactory<RequestType> => {
+    guard: NesoGuard<RequestType>, callback: NesoCallback<RequestType, ResponseType>,
+    mime: NesoMimeType = "application/json"): NesoCallbackFactory<RequestType, ResponseType> => {
 
         // return a factory function which will select the correct serializer
-        return (serializers: Array<NesoSerializerMimeTuple<any>>, type: NesoCallbackType,
-                invokeNextOnError: boolean = false) => {
+        return (serializers: Array<NesoMimeSerializer<any>>, type: NesoCallbackType,
+                kind: NesoCallbackKind, invokeNextOnError: boolean = false) => {
 
                     // select the correct serializer for the mime string, default is
                     // JSON.stringify()
@@ -112,14 +124,22 @@ export const module = <RequestType extends {}, ResponseType>(
                             return send(ServerError, JSON.stringify, "application/json", ServerError.code, res);
                         }
 
-                        // no error occured, respond with the response, using the selected serializer,
-                        // the correct http status code and the correct mime type
-                        return send(response, serializer, mime, type === "create" ? 201 : 200, res);
+                        // no error occured
+                        // if the callback is one of an endpoint respond with the response
+                        // immediately
+                        if (kind === "endpoint") {
+                            // respond with the response, using the selected serializer,
+                            // the correct http status code and the correct mime type
+                            return send(response, serializer, mime, type === "create" ? 201 : 200, res);
+                        }
+
+                        // kind is middleware - the callbacks result needs to be returned
+                        return response;
                     };
         };
 };
 
-export class Router {
+export class NesoRouter {
 
     /**
      * flag to change execution flow - true will invoke the next
@@ -141,7 +161,7 @@ export class Router {
     /**
      * list of all serializers for the mime types hosted in this router
      */
-    private serializers: Array<NesoSerializerMimeTuple<any>>;
+    private serializers: Array<NesoMimeSerializer<any>>;
 
     /**
      * kv-translation of NesoCallbackType to HttpMethod
@@ -152,7 +172,7 @@ export class Router {
      * create a new router
      * @param options expressjs router options
      */
-    constructor(options: RouterOptions | undefined, serializers: Array<NesoSerializerMimeTuple<any>>) {
+    constructor(options: RouterOptions | undefined, serializers: Array<NesoMimeSerializer<any>>) {
 
         // initialize the expressjs router
         this.router = ExpressRouter(options);
@@ -172,7 +192,7 @@ export class Router {
     public create<RequestType>(
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
+        build: NesoRequestConstructor<RequestType>,
         callback: NesoCallbackFactory<RequestType>) {
             this.hook("create", url, name, build, callback);
     }
@@ -183,7 +203,7 @@ export class Router {
     public read<RequestType>(
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
+        build: NesoRequestConstructor<RequestType>,
         callback: NesoCallbackFactory<RequestType>) {
             this.hook("read", url, name, build, callback);
     }
@@ -194,7 +214,7 @@ export class Router {
     public update<RequestType>(
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
+        build: NesoRequestConstructor<RequestType>,
         callback: NesoCallbackFactory<RequestType>) {
             this.hook("update", url, name, build, callback);
     }
@@ -205,7 +225,7 @@ export class Router {
     public delete<RequestType>(
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
+        build: NesoRequestConstructor<RequestType>,
         callback: NesoCallbackFactory<RequestType>) {
             this.hook("delete", url, name, build, callback);
     }
@@ -216,7 +236,7 @@ export class Router {
     public exist<RequestType>(
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
+        build: NesoRequestConstructor<RequestType>,
         callback: NesoCallbackFactory<RequestType>) {
             this.hook("exist", url, name, build, callback);
     }
@@ -234,17 +254,20 @@ export class Router {
         return this.router;
     }
 
-    private hook<RequestType>(
+    private hook<RequestType, ResponseType>(
         type: NesoCallbackType,
+        kind: NesoCallbackKind,
         url: string,
         name: string,
-        build: NesoRequestBuilder<RequestType>,
-        callback: NesoCallbackFactory<RequestType>) {
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>,
+        destruct?: NesoResponseDestructor<ResponseType>) {
 
-            // indicate if there is at least one other route
-            // registration with the same name which would
+            // indicate if there is at least one other non-middleware
+            // route registration with the same name which would
             // violate the unique name constraint
             const isDuplicateNameRoute = this.routes
+                .filter((r) => r.kind !== "middleware")
                 .filter((r) => r.name === name).length > 0;
 
             // throw an error if there is a unique name
@@ -253,10 +276,11 @@ export class Router {
                 throw new Error("duplicate name found: " + name + " was already loaded");
             }
 
-            // indicate if there is at least one other route
-            // registration with the same url and type, which
+            // indicate if there is at least one other non-middleware
+            // route registration with the same url and type, which
             // would violate the unique url-type association constraint
             const isDuplicateUrlTypeRoute = this.routes
+                .filter((r) => r.kind !== "middleware")
                 .filter((r) => r.url === url && r.type === type).length > 0;
 
             // throw an error if there is a unique url-type
@@ -267,15 +291,57 @@ export class Router {
 
             // invoke the factory callback (callback) with the type, the serializers
             // and the next-behavior flag invokeNextOnError
-            const operation = callback(this.serializers, type, this.invokeNextOnError);
+            const operation = callback(this.serializers, type, kind, this.invokeNextOnError);
 
             // build the async expressjs callback from the newly generated
             // operation function
-            const expressCallback = async (req: Request, res: Response, next: NextFunction) =>
-                await operation(build(req), req, res, next);
+            const expressCallback = async (req: Request, res: Response, next: NextFunction) => {
+
+                /* construction section */
+                // prepare a request data object
+                let request: RequestType = {} as RequestType;
+
+                try {
+                    // try to construct the request data object
+                    // using the construct callback
+                    request = await construct(req);
+
+                } catch (e) {
+
+                    // block requests that cannot be constructed
+                    return send(FormatError, JSON.stringify, "application/json", FormatError.code, res);
+                }
+
+                /* processing section */
+                // prepare a result data object
+                let result: ResponseType | void = {} as ResponseType;
+
+                try {
+                    // try to invoke the operation callback which might return something
+                    result = await operation(request, req, res, next);
+
+                } catch (e) {
+                    // it seems like the operation function did not catch all exceptions -
+                    // provide extract catch with a general ServerError response (http error code 500)
+                    return send(ServerError, JSON.stringify, "application/json", ServerError.code, res);
+                }
+
+                /* destruction section */
+                // check if the destruction is wanted/required
+                if (destruct && result !== null && result !== undefined) {
+
+                    try {
+                        // try to destruct the result
+                        await destruct(result, req);
+
+                    // tslint:disable-next-line:no-empty
+                    } catch (e) { }
+                }
+
+            };
 
             // there is no constraint violation and the callbacks were generated
             // successfully, push the route to the route list
-            this.routes.push(({ callback: expressCallback, name, type, url }));
+            this.routes.push({ callback: expressCallback, name, type, url, kind });
     }
 }

@@ -4,7 +4,7 @@ import * as crypto from "crypto";
 import { Request, Response } from "express";
 import * as express from "express";
 import * as morgan from "morgan";
-import { module, Router } from "./";
+import { module, NesoRouter } from "./";
 
 const hash = (payload: string) => {
     const salt = crypto.randomBytes(Math.ceil(64 / 2)).toString("hex").slice(0, 64);
@@ -18,7 +18,7 @@ const PasswordHashFactory = module<CreatePasswordHashRequest, CreatePasswordHash
     (data: any): data is CreatePasswordHashRequest => "username" in data && "password" in data,
     (object: CreatePasswordHashRequest) => hash(object.password));
 
-const router = new Router(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
+const router = new NesoRouter(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
 router.create<CreatePasswordHashRequest>("/", "", (req) =>
     ({ password: req.body.password, username: req.query.user }), PasswordHashFactory);
 
