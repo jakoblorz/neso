@@ -163,7 +163,11 @@ export const alias = <RequestType>(
 
 export class Router {
 
-
+    /**
+     * flag to change execution flow - true will invoke the next
+     * callback if an error occured instead of responding with the error or a custom
+     * server error. The next function will be invoked with the error as argument
+     */
     public invokeNextOnError: boolean = false;
 
     /**
@@ -174,7 +178,7 @@ export class Router {
     /**
      * list of all routes in this router
      */
-    private routes: LowHttpCallbackAlias[];
+    private routes: LowHttpCallbackAlias[] = [];
 
     /**
      * list of all serializers for the mime types hosted in this router
@@ -182,44 +186,121 @@ export class Router {
     private serializers: Array<LowHttpSerializerMimeTuple<any>>;
 
     /**
+     * kv-translation of LowHttpCallbackType to HttpMethod
+     */
+    private typeMethodDictionary: any = {};
+
+    /**
      * create a new router
      * @param options expressjs router options
      */
     constructor(options: RouterOptions | undefined, serializers: Array<LowHttpSerializerMimeTuple<any>>) {
+
+        // initialize the expressjs router
         this.router = ExpressRouter(options);
-        this.routes = [];
         this.serializers = serializers;
+
+        // load all LowHttpCallbackType to HttpMethod translations
+        this.typeMethodDictionary.create = "post";
+        this.typeMethodDictionary.read = "get";
+        this.typeMethodDictionary.update = "put";
+        this.typeMethodDictionary.delete = "delete";
+        this.typeMethodDictionary.exist = "head";
     }
 
-    public hook<RequestType>(
-        type: LowHttpCallbackType,
-        url: string,
-        name: string,
-        build: LowHttpRequestBuilder<RequestType>,
-        callback: LowHttpCallbackFactory) {
-
-            // TODO: filter errornous hooks
-
-            const isDuplicateNameRoute = this.routes
-                .filter((r) => r.name === name).length > 0;
-
-            const isDuplicateUrlTypeRoute = this.routes
-                .filter((r) => r.url === url && r.type === type).length > 0;
-
-            const operation = callback(this.serializers, type, this.invokeNextOnError);
-            const expressCallback = async (req: Request, res: Response, next: NextFunction) =>
-                await operation(build(req), req, res, next);
-
-            this.routes.push(({ callback: expressCallback, name, type, url }));
-
-            // TODO: add router route
-    }
-
+    /**
+     * create<RequestType>
+     */
     public create<RequestType>(
         url: string,
         name: string,
         build: LowHttpRequestBuilder<RequestType>,
         callback: LowHttpCallbackFactory) {
             this.hook("create", url, name, build, callback);
+    }
+
+    /**
+     * read<RequestType>
+     */
+    public read<RequestType>(
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+            this.hook("read", url, name, build, callback);
+    }
+
+    /**
+     * update<RequestType>
+     */
+    public update<RequestType>(
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+            this.hook("update", url, name, build, callback);
+    }
+
+    /**
+     * delete<RequestType>
+     */
+    public delete<RequestType>(
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+            this.hook("delete", url, name, build, callback);
+    }
+
+    /**
+     * exist<RequestType>
+     */
+    public exist<RequestType>(
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+            this.hook("exist", url, name, build, callback);
+    }
+
+    /**
+     * build
+     */
+    public build() {
+
+        this.routes.forEach((route) => {
+            const method = this.typeMethodDictionary[route.type];
+            (this.router as any)[method](route.url, route.callback);
+        });
+
+        return this.router;
+    }
+
+    private hook<RequestType>(
+        type: LowHttpCallbackType,
+        url: string,
+        name: string,
+        build: LowHttpRequestBuilder<RequestType>,
+        callback: LowHttpCallbackFactory) {
+
+            const isDuplicateNameRoute = this.routes
+                .filter((r) => r.name === name).length > 0;
+
+            if (isDuplicateNameRoute) {
+                throw new Error("duplicate name found: " + name + " was already loaded");
+            }
+
+            const isDuplicateUrlTypeRoute = this.routes
+                .filter((r) => r.url === url && r.type === type).length > 0;
+
+            if (isDuplicateUrlTypeRoute) {
+                throw new Error("duplicate url found: combination " + url + " and '" + type + "' was already loaded");
+            }
+
+            const operation = callback(this.serializers, type, this.invokeNextOnError);
+            const expressCallback = async (req: Request, res: Response, next: NextFunction) =>
+                await operation(build(req), req, res, next);
+
+            this.routes.push(({ callback: expressCallback, name, type, url }));
     }
 }
