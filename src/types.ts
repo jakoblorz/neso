@@ -45,3 +45,8 @@ export interface ITransactionCallbackAlias {
     url: string;
     callback: RequestHandler;
 }
+
+export interface IRoute<T> {
+    url: string;
+    router: T;
+}
