@@ -52,8 +52,10 @@ exports.ServerError = { code: 500, status: "Server Error" };
  * @param res expressjs response object
  */
 exports.send = function (body, serializer, mime, status, res) {
-    res.setHeader("Content-Type", mime + "; charset=utf-8");
-    res.status(status).send(serializer(body));
+    if (res.finished !== true) {
+        res.setHeader("Content-Type", mime + "; charset=utf-8");
+        res.status(status).end(serializer(body));
+    }
 };
 /**
  * create a wrapped and guarded callback
@@ -66,7 +68,7 @@ exports.send = function (body, serializer, mime, status, res) {
 exports.module = function (guard, callback, mime) {
     if (mime === void 0) { mime = "application/json"; }
     // return a factory function which will select the correct serializer
-    return function (serializers, type, invokeNextOnError) {
+    return function (serializers, type, kind, invokeNextOnError) {
         if (invokeNextOnError === void 0) { invokeNextOnError = false; }
         // select the correct serializer for the mime string, default is
         // JSON.stringify()
@@ -121,20 +123,27 @@ exports.module = function (guard, callback, mime) {
                         if (executionThrewError) {
                             return [2 /*return*/, exports.send(exports.ServerError, JSON.stringify, "application/json", exports.ServerError.code, res)];
                         }
-                        // no error occured, respond with the response, using the selected serializer,
-                        // the correct http status code and the correct mime type
-                        return [2 /*return*/, exports.send(response, serializer, mime, type === "create" ? 201 : 200, res)];
+                        // no error occured
+                        // if the callback is one of an endpoint respond with the response
+                        // immediately
+                        if (kind === "endpoint") {
+                            // respond with the response, using the selected serializer,
+                            // the correct http status code and the correct mime type
+                            return [2 /*return*/, exports.send(response, serializer, mime, type === "create" ? 201 : 200, res)];
+                        }
+                        // kind is middleware - the callbacks result needs to be returned
+                        return [2 /*return*/, response];
                 }
             });
         }); };
     };
 };
-var Router = /** @class */ (function () {
+var NesoRouter = /** @class */ (function () {
     /**
      * create a new router
      * @param options expressjs router options
      */
-    function Router(options, serializers) {
+    function NesoRouter(options, serializers) {
         /**
          * flag to change execution flow - true will invoke the next
          * callback if an error occured instead of responding with the error or a custom
@@ -158,41 +167,48 @@ var Router = /** @class */ (function () {
         this.typeMethodDictionary.update = "put";
         this.typeMethodDictionary.delete = "delete";
         this.typeMethodDictionary.exist = "head";
+        this.typeMethodDictionary.all = "all";
     }
     /**
-     * create<RequestType>
+     * create<RequestType, ResponseType>
      */
-    Router.prototype.create = function (url, name, build, callback) {
-        this.hook("create", url, name, build, callback);
+    NesoRouter.prototype.create = function (url, name, construct, callback) {
+        this.hook("create", "endpoint", url, name, construct, callback);
     };
     /**
-     * read<RequestType>
+     * read<RequestType, ResponseType>
      */
-    Router.prototype.read = function (url, name, build, callback) {
-        this.hook("read", url, name, build, callback);
+    NesoRouter.prototype.read = function (url, name, construct, callback) {
+        this.hook("read", "endpoint", url, name, construct, callback);
     };
     /**
-     * update<RequestType>
+     * update<RequestType, ResponseType>
      */
-    Router.prototype.update = function (url, name, build, callback) {
-        this.hook("update", url, name, build, callback);
+    NesoRouter.prototype.update = function (url, name, construct, callback) {
+        this.hook("update", "endpoint", url, name, construct, callback);
     };
     /**
-     * delete<RequestType>
+     * delete<RequestType, ResponseType>
      */
-    Router.prototype.delete = function (url, name, build, callback) {
-        this.hook("delete", url, name, build, callback);
+    NesoRouter.prototype.delete = function (url, name, construct, callback) {
+        this.hook("delete", "endpoint", url, name, construct, callback);
     };
     /**
-     * exist<RequestType>
+     * exist<RequestType, ResponseType>
      */
-    Router.prototype.exist = function (url, name, build, callback) {
-        this.hook("exist", url, name, build, callback);
+    NesoRouter.prototype.exist = function (url, name, construct, callback) {
+        this.hook("exist", "endpoint", url, name, construct, callback);
+    };
+    /**
+     * use<RequestType, ResponseType>
+     */
+    NesoRouter.prototype.use = function (url, type, construct, callback, destruct) {
+        this.hook(type, "middleware", url, "", construct, callback, destruct);
     };
     /**
      * build
      */
-    Router.prototype.build = function () {
+    NesoRouter.prototype.build = function () {
         for (var _i = 0, _a = this.routes; _i < _a.length; _i++) {
             var route = _a[_i];
             var method = this.typeMethodDictionary[route.type];
@@ -200,22 +216,24 @@ var Router = /** @class */ (function () {
         }
         return this.router;
     };
-    Router.prototype.hook = function (type, url, name, build, callback) {
+    NesoRouter.prototype.hook = function (type, kind, url, name, construct, callback, destruct) {
         var _this = this;
-        // indicate if there is at least one other route
-        // registration with the same name which would
+        // indicate if there is at least one other non-middleware
+        // route registration with the same name which would
         // violate the unique name constraint
         var isDuplicateNameRoute = this.routes
+            .filter(function (r) { return r.kind !== "middleware"; })
             .filter(function (r) { return r.name === name; }).length > 0;
         // throw an error if there is a unique name
         // constraint violation
         if (isDuplicateNameRoute) {
             throw new Error("duplicate name found: " + name + " was already loaded");
         }
-        // indicate if there is at least one other route
-        // registration with the same url and type, which
+        // indicate if there is at least one other non-middleware
+        // route registration with the same url and type, which
         // would violate the unique url-type association constraint
         var isDuplicateUrlTypeRoute = this.routes
+            .filter(function (r) { return r.kind !== "middleware"; })
             .filter(function (r) { return r.url === url && r.type === type; }).length > 0;
         // throw an error if there is a unique url-type
         // association violation
@@ -224,19 +242,65 @@ var Router = /** @class */ (function () {
         }
         // invoke the factory callback (callback) with the type, the serializers
         // and the next-behavior flag invokeNextOnError
-        var operation = callback(this.serializers, type, this.invokeNextOnError);
+        var operation = callback(this.serializers, type, kind, this.invokeNextOnError);
         // build the async expressjs callback from the newly generated
         // operation function
-        var expressCallback = function (req, res, next) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, operation(build(req), req, res, next)];
-                case 1: return [2 /*return*/, _a.sent()];
-            }
-        }); }); };
+        var expressCallback = function (req, res, next) { return __awaiter(_this, void 0, void 0, function () {
+            var request, e_2, result, e_3, e_4;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        request = {};
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, construct(req)];
+                    case 2:
+                        // try to construct the request data object
+                        // using the construct callback
+                        request = _a.sent();
+                        return [3 /*break*/, 4];
+                    case 3:
+                        e_2 = _a.sent();
+                        // block requests that cannot be constructed
+                        return [2 /*return*/, exports.send(exports.FormatError, JSON.stringify, "application/json", exports.FormatError.code, res)];
+                    case 4:
+                        result = {};
+                        _a.label = 5;
+                    case 5:
+                        _a.trys.push([5, 7, , 8]);
+                        return [4 /*yield*/, operation(request, req, res, next)];
+                    case 6:
+                        // try to invoke the operation callback which might return something
+                        result = _a.sent();
+                        return [3 /*break*/, 8];
+                    case 7:
+                        e_3 = _a.sent();
+                        // it seems like the operation function did not catch all exceptions -
+                        // provide extract catch with a general ServerError response (http error code 500)
+                        return [2 /*return*/, exports.send(exports.ServerError, JSON.stringify, "application/json", exports.ServerError.code, res)];
+                    case 8:
+                        if (!(destruct && result !== null && result !== undefined)) return [3 /*break*/, 12];
+                        _a.label = 9;
+                    case 9:
+                        _a.trys.push([9, 11, , 12]);
+                        // try to destruct the result
+                        return [4 /*yield*/, destruct(result, req)];
+                    case 10:
+                        // try to destruct the result
+                        _a.sent();
+                        return [3 /*break*/, 12];
+                    case 11:
+                        e_4 = _a.sent();
+                        return [3 /*break*/, 12];
+                    case 12: return [2 /*return*/];
+                }
+            });
+        }); };
         // there is no constraint violation and the callbacks were generated
         // successfully, push the route to the route list
-        this.routes.push(({ callback: expressCallback, name: name, type: type, url: url }));
+        this.routes.push({ callback: expressCallback, name: name, type: type, url: url, kind: kind });
     };
-    return Router;
+    return NesoRouter;
 }());
-exports.Router = Router;
+exports.NesoRouter = NesoRouter;

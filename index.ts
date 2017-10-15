@@ -13,7 +13,7 @@ export type NesoCallbackType = "create" | "read" | "update" | "delete" | "exist"
 export type NesoCallbackKind = "middleware" | "endpoint";
 export type NesoCallbackFactory<X, Y> = (
     serializers: Array<NesoMimeSerializer<any>>,
-    type: NesoCallbackType,
+    type: NesoCallbackType | "all",
     kind: NesoCallbackKind,
     invokeNextOnError: boolean) =>
         (object: X, req: Request, res: Response, next: NextFunction) => Promise<Y> | Y | void;
@@ -25,7 +25,7 @@ export type NesoCallbackAlias = {
     callback: NesoExpressJSCallback;
     name: string;
     url: string;
-    type: NesoCallbackType
+    type: NesoCallbackType | "all";
 };
 
 /* error definitions */
@@ -66,7 +66,7 @@ export const module = <RequestType extends {}, ResponseType>(
     mime: NesoMimeType = "application/json"): NesoCallbackFactory<RequestType, ResponseType> => {
 
         // return a factory function which will select the correct serializer
-        return (serializers: Array<NesoMimeSerializer<any>>, type: NesoCallbackType,
+        return (serializers: Array<NesoMimeSerializer<any>>, type: NesoCallbackType | "all",
                 kind: NesoCallbackKind, invokeNextOnError: boolean = false) => {
 
                     // select the correct serializer for the mime string, default is
@@ -184,6 +184,7 @@ export class NesoRouter {
         this.typeMethodDictionary.update = "put";
         this.typeMethodDictionary.delete = "delete";
         this.typeMethodDictionary.exist = "head";
+        this.typeMethodDictionary.all = "all";
     }
 
     /**
@@ -242,6 +243,18 @@ export class NesoRouter {
     }
 
     /**
+     * use<RequestType, ResponseType>
+     */
+    public use<RequestType, ResponseType>(
+        url: string,
+        type: NesoCallbackType | "all",
+        construct: NesoRequestConstructor<RequestType>,
+        callback: NesoCallbackFactory<RequestType, ResponseType>,
+        destruct: NesoResponseDestructor<ResponseType>) {
+            this.hook(type, "middleware", url, "", construct, callback, destruct);
+    }
+
+    /**
      * build
      */
     public build() {
@@ -255,7 +268,7 @@ export class NesoRouter {
     }
 
     private hook<RequestType, ResponseType>(
-        type: NesoCallbackType,
+        type: NesoCallbackType | "all",
         kind: NesoCallbackKind,
         url: string,
         name: string,

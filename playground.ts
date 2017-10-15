@@ -19,7 +19,7 @@ const PasswordHashFactory = module<CreatePasswordHashRequest, CreatePasswordHash
     (object: CreatePasswordHashRequest) => hash(object.password));
 
 const router = new NesoRouter(undefined, [{ mime: "application/json", serializer: JSON.stringify }]);
-router.create<CreatePasswordHashRequest>("/", "", (req) =>
+router.create<CreatePasswordHashRequest, CreatePasswordHashResponse>("/", "", (req) =>
     ({ password: req.body.password, username: req.query.user }), PasswordHashFactory);
 
 const expressRouter = router.build();
