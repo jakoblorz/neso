@@ -2,14 +2,111 @@ import { NextFunction, Request, Response, Router as ExpressRouter, RouterOptions
 import { FormatError, ServerError } from "./error";
 import { send } from "./http";
 import {
+    GuardCallback,
+    IError,
     IMimeSerializer,
     ITransactionCallbackAlias,
+    Serializer,
+    SourceTransactionCallback,
     SourceTransactionCallbackFactory,
     SourceTypeConstructor,
+    SupportedMimeType,
     TargetTypeDestructor,
+    TransactionCallback,
     TransactionCallbackMethod,
     TransactionCallbackType,
 } from "./types";
+
+/**
+ * create a wrapped and guarded callback
+ * @param guard function to validate that the request object is one of
+ * type RequestType
+ * @param callback function that will be invoked with the request object,
+ * can return ResponseType, NesoError or both as promise
+ * @param mime signal which mime type will be used
+ */
+export const module = <RequestType extends {}, ResponseType>(
+    guard: GuardCallback<RequestType>, callback: TransactionCallback<RequestType, ResponseType>,
+    mime: SupportedMimeType = "application/json"): SourceTransactionCallbackFactory<RequestType, ResponseType> => {
+
+        // return a factory function which will select the correct serializer
+        return (serializers: Array<IMimeSerializer<any>>, method: TransactionCallbackMethod | "all",
+                type: TransactionCallbackType, invokeNextOnError: boolean = false) => {
+
+                    // select the correct serializer for the mime string, default is
+                    // JSON.stringify()
+                    const serializer: Serializer<ResponseType> = serializers
+                        .filter((s) => s.mime === mime)[0].serializer || JSON.stringify;
+
+                    // result of the factory function is a expressjs styled handler
+                    return async (object: RequestType, req: Request, res: Response, next: NextFunction) => {
+
+                        // check if the recieved request object contains the required keys
+                        if (!guard(object)) {
+
+                            // request does not contain the necessary keys, respond with a JSON-encoded
+                            // Format Error
+                            send(FormatError, JSON.stringify, "application/json", FormatError.code, res);
+                            return null;
+                        }
+
+                        // prepare a response object which will default to a ServerError (http error code: 500);
+                        // prepare a error flag
+                        let response: ResponseType | IError | any = FormatError;
+                        let executionThrewError: boolean = false;
+
+                        try {
+                            // invoke the callback and wait for the result
+                            response = await callback(object);
+
+                        } catch (e) {
+                            // catch possible errors during callback execution
+                            // error will be set as the response while also setting
+                            // the error flag to true
+                            executionThrewError = true;
+                            response = e;
+                        }
+
+                        // if an error occured and next-callback should be invoked,
+                        // do it right here
+                        if (executionThrewError && invokeNextOnError) {
+                            next(response);
+                            return null;
+                        }
+
+                        // if an error occured and the response object (which is the error object
+                        // in this case), contains the code and status key, the error is expected
+                        // the been thrown on purpose, following the NesoError Type
+                        // (like throw NotFoundError) - encode the error as JSON in this case
+                        // and respond with it
+                        if (executionThrewError && "code" in response && "status" in response) {
+                            send(response, JSON.stringify, "application/json", response.code, res);
+                            return null;
+                        }
+
+                        // if an error occured and was not processed yet, the error must be something
+                        // more concerning - respond with an JSON encoded general ServerError (http error code: 500)
+                        if (executionThrewError) {
+                            send(ServerError, JSON.stringify, "application/json", ServerError.code, res);
+                            return null;
+                        }
+
+                        // no error occured
+                        // if the callback is one of an endpoint respond with the response
+                        // immediately
+                        if (type === "endpoint") {
+                            // respond with the response, using the selected serializer,
+                            // the correct http status code and the correct mime type
+                            send(response, serializer, mime, method === "create" ? 201 : 200, res);
+                            return null;
+                        }
+
+                        // kind is middleware - the callbacks result needs to be returned
+                        return response;
+                    };
+        };
+};
+
 export class TransactionRouter {
 
     /**
