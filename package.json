@@ -1,5 +1,5 @@
 {
-  "name": "neso",
+  "name": "scirocco",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jakoblorz/neso.git"
+    "url": "git+https://github.com/jakoblorz/scirocco.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/jakoblorz/neso/issues"
+    "url": "https://github.com/jakoblorz/scirocco/issues"
   },
-  "homepage": "https://github.com/jakoblorz/neso#readme",
+  "homepage": "https://github.com/jakoblorz/scirocco#readme",
   "dependencies": {
     "body-parser": "^1.18.2",
     "es6-promise": "^4.1.1",
