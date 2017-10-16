@@ -27,6 +27,21 @@ export const ServerError: ErrorType = { code: 500, status: "Server Error" };
 const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
     res.status(status).json(payload);
 
+export const secure = <SourceType, TargetType>(
+    guard: (object: any) => object is SourceType,
+    callback: AsyncSyncTransactionMethod<SourceType, TargetType>,
+): AsyncSyncTransactionMethod<SourceType, TargetType> => {
+
+    return async (source: SourceType): Promise<TargetType> => {
+
+        if (!guard(source)) {
+            throw FormatError;
+        }
+
+        return callback(source);
+    };
+};
+
 /**
  * scaffold a new expressjs request handler which is executing the different evaluation stages
  * automatically
