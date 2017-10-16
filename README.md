@@ -1,15 +1,18 @@
 # scirocco
-this modules keeps json-apis safe from format checking
+add type guards to your expressjs request handlers
 
-## Idea/Sample
-http-apis always follow the same pattern:
+## idea/example
+### recurring patterns
+If your have already developed a http-api, your are aware of the always returning pattern:
 1. a request is recieved and checked if all necessary arguments were sent
 2. arguments get extracted
 3. **the magic happens**
 4. result is packed into the response object
-5. response is being sent back
+5. error evaluation
+6. response is being sent back
 
-This structure can be simplified with this module, while also enhancing types. The following example will hash a password which is url-encoded - *insecure!*. Types were sometimes added to help understanding.
+### abstracting the pattern
+This can be simplified, while also enhancing types. The following example will hash a password which is url-encoded - *insecure!*. Types were added sometimes to help understanding.
 1. create a SourceType and a TargetType for your callback action:
 ```typescript
 //hash.ts
@@ -22,7 +25,7 @@ export interface IHashTarget { hash: string; salt: string; }
 const HashGuard = (object: any): object is IHashSource =>
     "password" in object && typeof object.password === "string";
 ```
-3. export a guarded callback:
+3. export the guard-secured callback:
 ```typescript
 //hash.ts
 import * as crypto from "crypto";
@@ -33,8 +36,8 @@ const hash = (payload: string) => {
     return { salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
 };
 
-export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source: IHashSource) =>
-    hash(source.password));
+export const callback = secure<IHashSource, IHashTarget>(
+    HashGuard, (source: IHashSource): IHashTarget => hash(source.password));
 ```
 4. import the callback and the types into your expressjs router:
 ```typescript
@@ -49,7 +52,7 @@ const router: Router = Router();
 ```
 5. scaffold the expressjs request-handler - using a construct-callback which selects the
 necessary request arguments (like req.query.password), the callback and a destruct-callback
-which reduces the result from the callback (destruct-callback is optional)
+which reduces the result from the callback (destruct-callback is **optional**)
 ```typescript
 // router.ts
 
@@ -64,10 +67,10 @@ const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse
 router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
     construct, callback, destruct)); 
 ```
-6. done! you now have a exception stable, format secure and type-asserted request handler to
-hash a password (**NOTICE: the hashing mechanism show here might not be secure - do not copy & paste this example for production**) 
+6. done! you now have a exception-stable, format-secure and type-asserted request handler to
+hash a password (**NOTICE: the hashing mechanism shown here might not be secure - do not copy & paste this example for production**)
 
-The full code should look like this:
+## full code example
 ```typescript
 // hash.ts
 import * as crypto from "crypto";
