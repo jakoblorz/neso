@@ -6,9 +6,9 @@ export type AsyncTransactionMethod<SourceType, TargetType> = (source: SourceType
     Promise<TargetType>;
 export type SyncTransactionMethod<SourceType, TargetType> = (source: SourceType) =>
     TargetType;
-export type AsyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request) =>
+export type AsyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request, res: Response) =>
     Promise<TargetType>;
-export type SyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request) =>
+export type SyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request, res: Response) =>
     TargetType;
 
 /* combined types */
@@ -44,7 +44,7 @@ const respond = <ResponseType>(payload: ResponseType, res: Response, status: num
 export const scaffold = <SourceType, TargetType extends ResponseType, ResponseType>(
     construct: AsyncSyncTransactionMethod<Request, SourceType | ErrorType>,
     callback: AsyncSyncTransactionMethod<SourceType, TargetType | ErrorType>,
-    destruct?: AsyncSyncTransactionMethod<TargetType, ResponseType | ErrorType>,
+    destruct?: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType>,
     invokeNextOnError: boolean = false,
     passPureErrors: boolean = false,
     customSuccessCode: number = 200,
@@ -169,8 +169,14 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
 
         // execute the destruction phase - reduce the result
         if (destruct !== undefined) {
+
+            // build a callback wrapper to inject the request object as
+            // second argument while using executeTryCatchEvaluation method
+            const destruction = async (arg: TargetType) =>
+                await destruct(arg, req, res);
+
             // change the response object in the destruction phase
-            response = await executeTryCatchEvaluation<TargetType, ResponseType>(destruct, callbackResult);
+            response = await executeTryCatchEvaluation<TargetType, ResponseType>(destruction, callbackResult);
 
             // the response can now be null - if the response channel
             // closed already (req.finished) then a error occured
