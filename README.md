@@ -1,13 +1,14 @@
 # scirocco
 add type guards to your expressjs request handlers
 
-## idea/example
+**NOTICE: this module is currently completely untested - use with caution**
+## idea
 ### recurring patterns
 If your have already developed a http-api, your are aware of the always returning pattern:
-1. a request is recieved and checked if all necessary arguments were sent
+1. request is recieved and checked if all necessary arguments were sent
 2. arguments get extracted
-3. **the magic happens**
-4. result is packed into the response object
+3. **magic happens**
+4. result is packed in the response
 5. error evaluation
 6. response is being sent back
 
