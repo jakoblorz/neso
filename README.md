@@ -33,7 +33,7 @@ const hash = (payload: string) => {
     return { salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
 };
 
-export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source) =>
+export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source: IHashSource) =>
     hash(source.password));
 ```
 4. import the callback and the types into your expressjs router:
@@ -52,10 +52,17 @@ necessary request arguments (like req.query.password), the callback and a destru
 which reduces the result from the callback (destruct-callback is optional)
 ```typescript
 // router.ts
+
+// construct callback
+const construct = (req: Request): IHashSource => ({ password: req.query.password });
+
+// destruct callback
+const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse =>
+    ({ hash: data.hash });
+
+// hook the scaffolded callback to GET /hash
 router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
-    (req: Request): IHashSource => ({ password: req.query.password }),
-    callback,
-    (data: IHashTarget, req: Request, res: Response) => ({ hash: data.hash })));
+    construct, callback, destruct)); 
 ```
 6. done! you now have a exception stable, format secure and type-asserted request handler to
 hash a password (**NOTICE: the hashing mechanism show here might not be secure - do not copy & paste this example for production**) 
@@ -66,19 +73,24 @@ The full code should look like this:
 import * as crypto from "crypto";
 import { scaffold } from "scirocco";
 
+// transaction types - source and target
 export interface IHashSource { password: string; }
 export interface IHashTarget { hash: string; salt: string; }
 
+// function which hashes passwords using sha512 and a random salt
 const hash = (payload: string): IHashTarget => {
     const salt = crypto.randomBytes(Math.ceil(64 / 2)).toString("hex").slice(0, 64);
     return { salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
 };
 
+// function which checks for correct format
 const HashGuard = (object: any): object is IHashSource =>
     "password" in object && typeof object.password === "string";
 
-export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source) =>
+// callback is a guarded callback transacting an IHashSource object to IHashTarget object
+export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source: IHashSource) =>
     hash(source.password));
+
 ```
 ```typescript
 // router.ts
@@ -86,12 +98,21 @@ import { Request, Router } from "express";
 import { scaffold } from "scirocco";
 import { callback, IHashSource, IHashTarget } from "./hash";
 
+// type of the response body
 interface IHashResponse { hash: string; }
 
+// initialization of the expressjs router
 const router: Router = Router();
 
+
+// construct callback
+const construct = (req: Request): IHashSource => ({ password: req.query.password });
+
+// destruct callback
+const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse =>
+    ({ hash: data.hash });
+
+// hook the scaffolded callback to GET /hash
 router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
-    (req: Request): IHashSource => ({ password: req.query.password }),
-    callback,
-    (data: IHashTarget, req: Request, res: Response): IHashResponse => ({ hash: data.hash }))); 
+    construct, callback, destruct)); 
 ```
