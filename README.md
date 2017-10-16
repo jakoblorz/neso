@@ -119,3 +119,15 @@ const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse
 router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
     construct, callback, destruct)); 
 ```
+
+## error handling
+errors can occur always thus they need proper handling - with this module it is very easy: 
+*you can throw any error everywhere (in the construct, guard, callback and destruct function): `throw NotFoundError`*. This module exports a few standard
+errors (*`FormatError`*, *`ForbiddenError`*, *`UnauthorizedError`*, *`NotFoundError`* and *`ServerError`*), but you can also
+create your own (**pull-request them?**) if you want - just use the *`ErrorType`* which is also exported.
+
+### scaffold error-arguments
+The scaffold function takes 6 arguments max. The first three are callbacks but the two after them are more interesting from an error-handling perspective:
+
+- `invokeNextOnError`: if invokeNextOnError is true, the next-callback from expressjs will be invoked if an error was thrown (it will be invoked with the error as first argument) instead of being sent back immediately - so you can add your own error-handler to the express instance. If an error was thrown which is not of the type `ErrorType`, the error will be wrapped into a new error object: `{ code: 500, status: "ServerError", error: e }` where `'e'` is the thrown error (only if `passPureErrors` is `true`). *default=`false`*
+- `passPureErrors`: select if errors that are not of the type `ErrorType` should be replaced with a ServerError. *default=`false`*
