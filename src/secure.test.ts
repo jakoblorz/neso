@@ -47,7 +47,7 @@ describe("secure.test.ts", () => {
 
             try {
                 await callback({});
-                throw new Error("callback is being called even if the guard evaluates to false")
+                throw new Error("callback is being called even if the guard evaluates to false");
 
             } catch (e) {
                 if (isErrorType(e) && e.code === Errors.FormatError.code && e.status === Errors.FormatError.status) {
