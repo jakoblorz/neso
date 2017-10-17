@@ -168,7 +168,7 @@ export namespace Errors {
  * keys with the correct types
  * @param object object to test
  */
-const isErrorType = (object: any): object is IErrorType =>
+export const isErrorType = (object: any): object is IErrorType =>
     typeof object === "object" &&
     "status" in object && typeof object.status === "string" &&
     "code" in object && typeof object.code === "number";
@@ -179,7 +179,7 @@ const isErrorType = (object: any): object is IErrorType =>
  * @param res expressjs response object
  * @param status http status code
  */
-const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
+export const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
     res.status(status).json(payload);
 
 /**
@@ -189,7 +189,7 @@ const respond = <ResponseType>(payload: ResponseType, res: Response, status: num
  * @param passPureErrors switch if unrecognized errors should
  * be replaced with a ServerError (-> http error code 500)
  */
-const evaluateAwaitable = async <X, Y> (awaitable: Transaction<X, Y | IErrorType>,
+export const evaluateAwaitable = async <X, Y> (awaitable: Transaction<X, Y | IErrorType>,
     argument: X, passPureErrors: boolean,
 ): Promise<Y | IErrorType> => {
 
@@ -223,7 +223,7 @@ const evaluateAwaitable = async <X, Y> (awaitable: Transaction<X, Y | IErrorType
  * @param next expressjs next-callback
  * @param invokeNextOnError switch to select behavior when errors occur
  */
-const processEvaluationResult = <X> (result: X | IErrorType, req: Request, res: Response,
+export const processEvaluationResult = <X> (result: X | IErrorType, req: Request, res: Response,
     next: NextFunction, invokeNextOnError: boolean,
 ): X | null => {
 
@@ -283,7 +283,7 @@ export const prepareResponseBody = <Type>(obj: Type, successCode: number = 200):
  * @param isMiddlewareCallback indicate to not respond but call next-callback when execution
  * successfully ends
  */
-const scaffold: ConfiguredScaffoldMethod = <SourceType, TargetType extends ResponseType, ResponseType> (
+export const scaffold: ConfiguredScaffoldMethod = <SourceType, TargetType extends ResponseType, ResponseType> (
     construct: Construction<Request, SourceType | IErrorType>,
     transaction: Transaction<SourceType, TargetType | IErrorType>,
     destruct: Destruction<TargetType, ResponseType | IErrorType> =
