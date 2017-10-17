@@ -382,3 +382,31 @@ export const config = (configuration: IConfiguration): ScaffoldMethod =>
     ): RequestHandler =>
         scaffold(construct, transaction, destruct, configuration.invokeNextOnError,
             configuration.passPureErrors, successCode, middleware);
+
+/**
+ * guard a callback which transforms a SourceType object int a TargetType object
+ * @param secure callback to evaluate if the given object is a valid SourceType
+ * @param callback callback which is being invoked only if the given object is a valid SourceType
+ */
+export const guard = <SourceType, TargetType>(secure: (object: any) => object is SourceType,
+    callback: Transaction<SourceType, TargetType | IErrorType>,
+): Transaction<SourceType, TargetType | IErrorType> => {
+
+    // return a async callback which takes the source and calls the callback
+    // only if the guard (the secure callback) evaluates the source as valid
+    // otherwise throw a FormatError which will be caught if this callback
+    // is being hooked into the expressjs stack using the scaffold function
+    return async (source: SourceType): Promise<TargetType | IErrorType> => {
+
+        // check if the source object is a valid SourceType object
+        if (!secure(source)) {
+
+            // source object is not valid - throw an FormatError
+            throw Errors.FormatError;
+        }
+
+        // source object is a valid object - call the callback
+        // and return its promise
+        return callback(source);
+    };
+};
