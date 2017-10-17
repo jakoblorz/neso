@@ -1,10 +1,8 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 
 import { Errors } from "./errors";
+import { respond } from "./respond";
 import { AsyncSyncDestructionMethod, AsyncSyncTransactionMethod, ErrorType } from "./types";
-
-const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
-    res.status(status).json(payload);
 
 /**
  * guard a callback which transforms a SourceType object into a TargetType object
