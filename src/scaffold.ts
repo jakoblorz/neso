@@ -6,6 +6,39 @@ import { secure } from "./secure";
 import { AsyncSyncDestructionMethod, AsyncSyncTransactionMethod, ErrorType } from "./types";
 
 /**
+ * call a awaitable callback which might throw errors
+ * @param awaitable awaitable callback
+ * @param args arguments to call the callback with
+ */
+export const evaluateAwaitable = async <X, Y> (
+    awaitable: AsyncSyncTransactionMethod<X, Y | ErrorType>,
+    args: X,
+    passPureErrors: boolean,
+): Promise<Y | ErrorType> => {
+
+    // return the result of the awaitable if the execution
+    // went successful, catch possible errors
+    try { return await awaitable(args); } catch (e) {
+
+        // check if the thrown error is of the type ErrorType
+        if (isErrorType(e)) {
+
+            // e is of the type ErrorType, immediate return is
+            // possible
+            return e;
+        }
+
+        // wrap the error into a new object which can be evaluated
+        // as of the type ErrorType
+        e = { code: Errors.ServerError.code, status: Errors.ServerError.status, error: e };
+
+        // check return switch - return the wrapped error or
+        // the ServerError as replacement
+        return passPureErrors ? e : Errors.ServerError;
+    }
+};
+
+/**
  * scaffold a new expressjs request handler which is executing the different evaluation stages
  * automatically
  * @param construct callback which compiles the Request object into a RequestType object
@@ -34,23 +67,47 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
     return async (req: Request, res: Response, next: NextFunction) => {
 
         /**
-         * execute the async callback while catching and filtering
-         * all possible errors
-         * @param awaitable async method which converts type X into
-         * type Y or and Error while throwing possibly errors
-         * @param arg argument to call the async method with
+         * check if the result is an error type and process it if it is.
+         * @param result object returned from the evaluateAwaitable function
          */
-        const executeTryCatchEvaluation = createExecuteTryCatchEvaluation(
-            req, res, next, invokeNextOnError, passPureErrors);
+        const processEvaluationResult = <X>(
+            result: X | ErrorType,
+        ): X | null => {
+
+            // is the result of type ErrorType and should
+            // the next callback be invoked
+            if (isErrorType(result) && invokeNextOnError) {
+                next(result);
+                return null;
+            }
+
+            // is the result of type ErrorType and the next
+            // callback should not be invoked
+            if (isErrorType(result)) {
+                respond(result, res, result.code);
+                return null;
+            }
+
+            // this function returns null if an error occured
+            // which was processed or something else (else is
+            // of type X) will be returned
+            return result;
+        };
+
+        const evaluate = async <X, Y> (
+            awaitable: AsyncSyncTransactionMethod<X, Y | ErrorType>,
+            args: X,
+        ): Promise<Y | null> =>
+            processEvaluationResult(await evaluateAwaitable(awaitable, args, passPureErrors));
 
         // execute the construction phase - extract the arguments from the request
-        const constructResult = await executeTryCatchEvaluation<Request, SourceType>(construct, req);
+        const constructResult = await evaluate<Request, SourceType>(construct, req);
         if (constructResult === null) {
             return null;
         }
 
         // execute the callback phase - process the arguments
-        const callbackResult = await executeTryCatchEvaluation<SourceType, TargetType>(callback, constructResult);
+        const callbackResult = await evaluate<SourceType, TargetType>(callback, constructResult);
         if (callbackResult === null) {
             return null;
         }
@@ -67,7 +124,7 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
                 await destruct(arg, req, res);
 
             // change the response object in the destruction phase
-            response = await executeTryCatchEvaluation<TargetType, ResponseType>(destruction, callbackResult);
+            response = await evaluate<TargetType, ResponseType>(destruction, callbackResult);
 
             // the response can now be null - if the response channel
             // closed already (req.finished) then a error occured

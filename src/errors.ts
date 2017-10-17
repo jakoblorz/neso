@@ -15,7 +15,7 @@ export namespace Errors {
  * keys with the correct types
  * @param test object to test
  */
-export const isErrorType = (test: any) =>
+export const isErrorType = (test: any): test is ErrorType =>
     typeof test === "object" &&
     "status" in test && typeof test.status === "string" &&
     "code" in test && typeof test.code === "number";
