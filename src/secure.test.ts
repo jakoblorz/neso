@@ -77,5 +77,14 @@ describe("secure.test.ts", () => {
             }
         });
 
+        it("should return result if no errors occured", async () => {
+            const callback = secure<Source, { success: boolean }>(
+                (source: Source): source is Source => true,
+                (source: Source) => ({ success: true }));
+
+            const result = await callback({});
+            assert.equal(typeof result === "object" && "success" in result && result.success === true, true);
+        });
+
     });
 });
