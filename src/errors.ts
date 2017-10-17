@@ -1,5 +1,4 @@
-/* pure type */
-export type ErrorType = { code: number, status: string };
+import { ErrorType } from "./types";
 
 // tslint:disable-next-line:no-namespace
 export namespace Errors {

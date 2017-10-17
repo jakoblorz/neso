@@ -1,23 +1,7 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 
-import { Errors, ErrorType } from "./errors";
-
-/* pure types */
-
-type AsyncTransactionMethod<SourceType, TargetType> = (source: SourceType) =>
-    Promise<TargetType>;
-type SyncTransactionMethod<SourceType, TargetType> = (source: SourceType) =>
-    TargetType;
-type AsyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request, res: Response) =>
-    Promise<TargetType>;
-type SyncDestructionMethod<SourceType, TargetType> = (source: SourceType, req: Request, res: Response) =>
-    TargetType;
-
-/* combined types */
-export type AsyncSyncTransactionMethod<SourceType, TargetType> =
-    AsyncTransactionMethod<SourceType, TargetType> | SyncTransactionMethod<SourceType, TargetType>;
-export type AsyncSyncDestructionMethod<SourceType, TargetType> =
-    AsyncDestructionMethod<SourceType, TargetType> | SyncDestructionMethod<SourceType, TargetType>;
+import { Errors } from "./errors";
+import { AsyncSyncDestructionMethod, AsyncSyncTransactionMethod, ErrorType } from "./types";
 
 const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
     res.status(status).json(payload);
@@ -70,7 +54,7 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
     construct: AsyncSyncTransactionMethod<Request, SourceType | ErrorType>,
     callback: AsyncSyncTransactionMethod<SourceType, TargetType | ErrorType>,
     destruct: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType> =
-        (source) => source,
+        (source, req, res) => source,
     invokeNextOnError: boolean = false,
     passPureErrors: boolean = false,
     customSuccessCode: number = 200,
