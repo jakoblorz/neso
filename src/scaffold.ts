@@ -5,31 +5,33 @@ import { respond } from "./respond";
 import { secure } from "./secure";
 import { AsyncSyncDestructionMethod, AsyncSyncTransactionMethod, ErrorType } from "./types";
 
-/**
- * check if the given object is a object containing the ErrorType
- * keys with the correct types
- * @param test object to test
- */
-export const isErrorType = (test: any) =>
-   "status" in test && typeof test.status === "string" &&
-   "code" in test && typeof test.code === "number";
+// tslint:disable-next-line:no-namespace
+export namespace ScaffoldInternals {
+    /**
+     * check if the given object is a object containing the ErrorType
+     * keys with the correct types
+     * @param test object to test
+     */
+    export const isErrorType = (test: any) =>
+        "status" in test && typeof test.status === "string" &&
+        "code" in test && typeof test.code === "number";
 
-/**
- * create a function which invokes a callback and catches all possible errors
- * @param req expressjs request object
- * @param res expressjs response object
- * @param next expressjs next callback
- * @param invokeNextOnError setting if next-callback should be invoked upon error
- * @param passPureErrors setting if error which are not of the type ErrorType
- * should NOT be replaced with a ServerError (500)
- */
-export const createExecuteTryCatchEvaluation = (
+    /**
+     * create a function which invokes a callback and catches all possible errors
+     * @param req expressjs request object
+     * @param res expressjs response object
+     * @param next expressjs next callback
+     * @param invokeNextOnError setting if next-callback should be invoked upon error
+     * @param passPureErrors setting if error which are not of the type ErrorType
+     * should NOT be replaced with a ServerError (500)
+     */
+    export const createExecuteTryCatchEvaluation = (
     req: Request,
     res: Response,
     next: NextFunction,
     invokeNextOnError: boolean,
     passPureErrors: boolean,
-) => async <X, Y> (awaitable: AsyncSyncTransactionMethod<X, Y | ErrorType>, arg: X): Promise<Y | null> => {
+    ) => async <X, Y> (awaitable: AsyncSyncTransactionMethod<X, Y | ErrorType>, arg: X): Promise<Y | null> => {
 
         // prepare a object which will hold the result of the async callback
         let data: Y | ErrorType =  {} as Y;
@@ -91,11 +93,11 @@ export const createExecuteTryCatchEvaluation = (
         return data as Y;
     };
 
-/**
- * prepare (convert) the given object into a sendable response
- * @param obj object to convert
- */
-export const prepareSuccessObject = <Type>(obj: Type, successCode: number = 200): ErrorType => {
+    /**
+     * prepare (convert) the given object into a sendable response
+     * @param obj object to convert
+     */
+    export const prepareSuccessObject = <Type>(obj: Type, successCode: number = 200): ErrorType => {
 
     // check if the code (http status code) needs to be set
     if ((obj as any).code === undefined || typeof (obj as any).code !== "number") {
@@ -109,7 +111,8 @@ export const prepareSuccessObject = <Type>(obj: Type, successCode: number = 200)
 
     // return the altered object
     return obj as any;
-};
+    };
+}
 
 /**
  * scaffold a new expressjs request handler which is executing the different evaluation stages
@@ -146,7 +149,7 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
          * type Y or and Error while throwing possibly errors
          * @param arg argument to call the async method with
          */
-        const executeTryCatchEvaluation = createExecuteTryCatchEvaluation(
+        const executeTryCatchEvaluation = ScaffoldInternals.createExecuteTryCatchEvaluation(
             req, res, next, invokeNextOnError, passPureErrors);
 
         // execute the construction phase - extract the arguments from the request
@@ -193,7 +196,7 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
         // respond with the result
         if (!isMiddlewareCallback) {
             // prepare the body and respond with it using the set status code
-            const responseBody = prepareSuccessObject(response);
+            const responseBody = ScaffoldInternals.prepareSuccessObject(response);
             respond(responseBody, res, responseBody.code);
 
             // execution flow of a non-middleware callback ends here
