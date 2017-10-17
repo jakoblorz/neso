@@ -58,6 +58,7 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
     invokeNextOnError: boolean = false,
     passPureErrors: boolean = false,
     customSuccessCode: number = 200,
+    isMiddlewareCallback: boolean = false,
 ): RequestHandler => {
 
     // return an expressjs request handler
@@ -202,11 +203,23 @@ export const scaffold = <SourceType, TargetType extends ResponseType, ResponseTy
             }
         }
 
-        // prepare the body and respond with it using the set status code
-        const responseBody = prepareSuccessObject(response);
-        respond(responseBody, res, responseBody.code);
+        // if the call-stack is not a middleware stack,
+        // respond with the result
+        if (!isMiddlewareCallback) {
+            // prepare the body and respond with it using the set status code
+            const responseBody = prepareSuccessObject(response);
+            respond(responseBody, res, responseBody.code);
 
-        // execution flow ends here - unneeded
+            // execution flow of a non-middleware callback ends here
+            return null;
+        }
+
+        // call-stack is a middleware stack,
+        // invoke the next function to proceed with
+        // execution of other RequestHandlers
+        next();
+
+        // execution flow of a middleware callback ends here
         return null;
     };
 };
