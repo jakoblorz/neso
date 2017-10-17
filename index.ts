@@ -1,5 +1,5 @@
 import { Request, RequestHandler } from "express";
-import { scaffold } from "./src/scirocco";
+import { scaffold } from "./src/scaffold";
 import {
     AsyncSyncDestructionMethod,
     AsyncSyncTransactionMethod,
