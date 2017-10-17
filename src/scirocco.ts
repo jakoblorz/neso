@@ -69,7 +69,8 @@ export const secure = <SourceType, TargetType>(
 export const scaffold = <SourceType, TargetType extends ResponseType, ResponseType>(
     construct: AsyncSyncTransactionMethod<Request, SourceType | ErrorType>,
     callback: AsyncSyncTransactionMethod<SourceType, TargetType | ErrorType>,
-    destruct?: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType>,
+    destruct: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType> =
+        (source) => source,
     invokeNextOnError: boolean = false,
     passPureErrors: boolean = false,
     customSuccessCode: number = 200,

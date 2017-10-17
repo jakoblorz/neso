@@ -19,7 +19,8 @@ export const config = (configuration: ISciroccoConfiguration): ScaffoldFactoryRe
     <SourceType, TargetType extends ResponseType, ResponseType>(
         construct: AsyncSyncTransactionMethod<Request, SourceType | ErrorType>,
         callback: AsyncSyncTransactionMethod<SourceType, TargetType | ErrorType>,
-        destruct?: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType>,
+        destruct: AsyncSyncDestructionMethod<TargetType, ResponseType | ErrorType> =
+            (source) => source,
         isMiddlewareCallback: boolean = false, customSuccessCode: number = 200,
     ): RequestHandler =>
         scaffold(construct, callback, destruct,
