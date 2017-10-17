@@ -9,3 +9,12 @@ export namespace Errors {
     export const NotFoundError: ErrorType = { code: 404, status: "Not Found Error" };
     export const ServerError: ErrorType = { code: 500, status: "Server Error" };
 }
+
+/**
+ * check if the given object is a object containing the ErrorType
+ * keys with the correct types
+ * @param test object to test
+ */
+export const isErrorType = (test: any) =>
+    "status" in test && typeof test.status === "string" &&
+    "code" in test && typeof test.code === "number";
