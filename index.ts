@@ -9,7 +9,7 @@ import {
 
 export { Errors } from "./src/errors";
 export { ErrorType } from "./src/types";
-export { secure as guard } from "./src/scirocco";
+export { secure as guard } from "./src/secure";
 export interface ISciroccoConfiguration {
     invokeNextOnError?: boolean;
     passPureErrors?: boolean;
