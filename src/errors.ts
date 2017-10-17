@@ -16,5 +16,6 @@ export namespace Errors {
  * @param test object to test
  */
 export const isErrorType = (test: any) =>
+    typeof test === "object" &&
     "status" in test && typeof test.status === "string" &&
     "code" in test && typeof test.code === "number";

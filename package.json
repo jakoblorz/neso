@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build-src": "tsc",
-    "test-src": "find ./build -name '*.test.js' | xargs mocha -R spec"
+    "test-src": "find ./src -name '*.test.js' | xargs mocha -R spec"
   },
   "repository": {
     "type": "git",
