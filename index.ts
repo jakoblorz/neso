@@ -1,1 +1,1 @@
-export { config, guard, Errors, IErrorType } from "./src/scirocco";
+export { config, guard, Errors, IErrorType, isErrorType } from "./src/scirocco";
