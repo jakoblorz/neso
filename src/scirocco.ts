@@ -411,38 +411,54 @@ export const guard = <SourceType, TargetType>(secure: (object: any) => object is
     };
 };
 
-export abstract class ScaffoldedEventHandler<RequestType extends Request, SourceType, TargetType> {
+// tslint:disable-next-line:max-line-length
+export abstract class ScaffoldedEventHandler<RequestType extends Request, SourceType, TargetType extends ResponseType, ResponseType> {
 
-    constructor(private configuration: IConfiguration, private isMiddleware: boolean = false) { }
+    constructor(
+        private configuration: IConfiguration = { invokeNextOnError: false, passPureErrors: false },
+        private isMiddleware: boolean = false) { }
 
     public abstract construct(request: RequestType):
         SourceType | IErrorType | Promise<SourceType | IErrorType>;
     public abstract guard(object: any): object is SourceType;
-    public abstract call(object: SourceType): Transaction<SourceType, TargetType | IErrorType>;
-    public destruct(result: TargetType, req: RequestType, res: Response):
-        Destruction<TargetType, ResponseType | IErrorType>;
+    public abstract call(object: SourceType): TargetType | IErrorType | Promise<TargetType | IErrorType>;
+    public combine(result: TargetType, req: RequestType, res: Response):
+        ResponseType | IErrorType | Promise<ResponseType | IErrorType> {
+            return result;
+        }
 
     /**
      * handler
      */
     public handler() {
         const transaction = guard(this.guard, this.call);
-        return config(this.configuration)(this.construct, transaction, this.destruct, this.isMiddleware);
+        return scaffold<SourceType, TargetType, ResponseType>(
+            this.construct, transaction, this.combine, this.isMiddleware);
     }
 }
 
 // tslint:disable-next-line:max-classes-per-file
-class TestScaffold extends ScaffoldedEventHandler<{ accountId: string }, { account: {}}> {
-    public construct<X extends Request>(request: X): (source: X) => Promise<IErrorType | { accountId: string; }> {
-        return (source: X) => new Promise<{accountId: string} | IErrorType>((resolve, reject) => {
-            resolve({ accountId: request.params.id });
-        });
+class GetUserAccountFromId extends ScaffoldedEventHandler<Request, { acccountId: string }, { account: string }, {}> {
+
+    public async construct(request: Request): Promise<IErrorType | { acccountId: string; }> {
+        return ({ acccountId: request.params.id });
     }
-    public guard(object: any): object is { accountId: string; } {
-        return "accountId" in object && typeof object.accountId === "string";
+
+    public guard(object: any): object is { acccountId: string; } {
+        return typeof object === "object" &&
+            "accountId" in object && typeof object.accountId === "string";
     }
-    public call(object: { accountId: string; }): (source: { accountId: string; }) => IErrorType | { account: {}; } | Promise<IErrorType | { account: {}; }> {
-        throw new Error("Method not implemented.");
+
+    public async call(object: { acccountId: string; }): Promise<IErrorType | { account: string; }> {
+        if (object.acccountId === "user1") {
+            return { account: "user found" };
+        }
+
+        throw Errors.NotFoundError;
     }
-    
+
+    public async combine(result: { account: string; }, req: Request, res: Response): Promise<{} | IErrorType> {
+        return result;
+    }
+
 }
