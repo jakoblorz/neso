@@ -410,3 +410,39 @@ export const guard = <SourceType, TargetType>(secure: (object: any) => object is
         return callback(source);
     };
 };
+
+export abstract class ScaffoldedEventHandler<RequestType extends Request, SourceType, TargetType> {
+
+    constructor(private configuration: IConfiguration, private isMiddleware: boolean = false) { }
+
+    public abstract construct(request: RequestType):
+        SourceType | IErrorType | Promise<SourceType | IErrorType>;
+    public abstract guard(object: any): object is SourceType;
+    public abstract call(object: SourceType): Transaction<SourceType, TargetType | IErrorType>;
+    public destruct(result: TargetType, req: RequestType, res: Response):
+        Destruction<TargetType, ResponseType | IErrorType>;
+
+    /**
+     * handler
+     */
+    public handler() {
+        const transaction = guard(this.guard, this.call);
+        return config(this.configuration)(this.construct, transaction, this.destruct, this.isMiddleware);
+    }
+}
+
+// tslint:disable-next-line:max-classes-per-file
+class TestScaffold extends ScaffoldedEventHandler<{ accountId: string }, { account: {}}> {
+    public construct<X extends Request>(request: X): (source: X) => Promise<IErrorType | { accountId: string; }> {
+        return (source: X) => new Promise<{accountId: string} | IErrorType>((resolve, reject) => {
+            resolve({ accountId: request.params.id });
+        });
+    }
+    public guard(object: any): object is { accountId: string; } {
+        return "accountId" in object && typeof object.accountId === "string";
+    }
+    public call(object: { accountId: string; }): (source: { accountId: string; }) => IErrorType | { account: {}; } | Promise<IErrorType | { account: {}; }> {
+        throw new Error("Method not implemented.");
+    }
+    
+}
