@@ -258,3 +258,24 @@ exports.guard = function (secure, callback) {
         });
     }); };
 };
+// tslint:disable-next-line:max-line-length
+var ScaffoldedEventHandler = /** @class */ (function () {
+    function ScaffoldedEventHandler(configuration, isMiddleware) {
+        if (configuration === void 0) { configuration = { invokeNextOnError: false, passPureErrors: false }; }
+        if (isMiddleware === void 0) { isMiddleware = false; }
+        this.configuration = configuration;
+        this.isMiddleware = isMiddleware;
+    }
+    ScaffoldedEventHandler.prototype.combine = function (result, req, res) {
+        return result;
+    };
+    /**
+     * handler
+     */
+    ScaffoldedEventHandler.prototype.handler = function () {
+        var transaction = exports.guard(this.guard, this.call);
+        return exports.scaffold(this.construct, transaction, this.combine, this.isMiddleware);
+    };
+    return ScaffoldedEventHandler;
+}());
+exports.ScaffoldedEventHandler = ScaffoldedEventHandler;

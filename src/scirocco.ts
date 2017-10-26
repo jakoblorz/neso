@@ -410,3 +410,29 @@ export const guard = <SourceType, TargetType>(secure: (object: any) => object is
         return callback(source);
     };
 };
+
+// tslint:disable-next-line:max-line-length
+export abstract class ScaffoldedEventHandler<RequestType extends Request, SourceType, TargetType extends ResponseType, ResponseType> {
+
+    constructor(
+        private configuration: IConfiguration = { invokeNextOnError: false, passPureErrors: false },
+        private isMiddleware: boolean = false) { }
+
+    public abstract construct(request: RequestType):
+        SourceType | IErrorType | Promise<SourceType | IErrorType>;
+    public abstract guard(object: any): object is SourceType;
+    public abstract call(object: SourceType): TargetType | IErrorType | Promise<TargetType | IErrorType>;
+    public combine(result: TargetType, req: RequestType, res: Response):
+        ResponseType | IErrorType | Promise<ResponseType | IErrorType> {
+            return result;
+        }
+
+    /**
+     * handler
+     */
+    public handler() {
+        const transaction = guard(this.guard, this.call);
+        return scaffold<SourceType, TargetType, ResponseType>(
+            this.construct, transaction, this.combine, this.isMiddleware);
+    }
+}
