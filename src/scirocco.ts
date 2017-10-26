@@ -436,29 +436,3 @@ export abstract class ScaffoldedEventHandler<RequestType extends Request, Source
             this.construct, transaction, this.combine, this.isMiddleware);
     }
 }
-
-// tslint:disable-next-line:max-classes-per-file
-class GetUserAccountFromId extends ScaffoldedEventHandler<Request, { acccountId: string }, { account: string }, {}> {
-
-    public async construct(request: Request): Promise<IErrorType | { acccountId: string; }> {
-        return ({ acccountId: request.params.id });
-    }
-
-    public guard(object: any): object is { acccountId: string; } {
-        return typeof object === "object" &&
-            "accountId" in object && typeof object.accountId === "string";
-    }
-
-    public async call(object: { acccountId: string; }): Promise<IErrorType | { account: string; }> {
-        if (object.acccountId === "user1") {
-            return { account: "user found" };
-        }
-
-        throw Errors.NotFoundError;
-    }
-
-    public async combine(result: { account: string; }, req: Request, res: Response): Promise<{} | IErrorType> {
-        return result;
-    }
-
-}
