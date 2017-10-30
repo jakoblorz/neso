@@ -1,4 +1,4 @@
-import { NextFunction, Request, RequestHandler, Response } from "express";
+import { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
 
 /**
  * all thrown errors should extends this type
@@ -200,5 +200,350 @@ export abstract class ScaffoldedRequestHandler<RequestType extends Request, Sour
 
     private respond<ResponseType>(response: ResponseType, res: Response, status: number = 200) {
         res.status(status).json(response);
+    }
+}
+
+export type SupportedMethods =
+    "get" | "post" | "put" | "delete" | "patch" | "options" | "head" | "use" |
+    "checkout" | "connect" | "copy" | "lock" | "merge" | "mkactivity" | "mkcol" | "move" |
+    "m-search" | "notify" | "propfind" | "proppatch" | "purge" | "report" | "search" | "subscribe" |
+    "trace" | "unlock" | "unsubscribe";
+const SupportedMethodsStringArray = [
+    "get" , "post" , "put" , "delete" , "patch" , "options" , "head" , "use" ,
+    "checkout" , "connect" , "copy" , "lock" , "merge" , "mkactivity" , "mkcol" , "move" ,
+    "m-search" , "notify" , "propfind" , "proppatch" , "purge" , "report" , "search" , "subscribe" ,
+    "trace" , "unlock" , "unsubscribe"];
+
+export type AnyHandler = RequestHandler | ErrorRequestHandler;
+
+export interface IWrappedHandler {
+    url: string;
+    handler: ErrorRequestHandler | RequestHandler | IWrappedHandler[];
+    method: SupportedMethods;
+    name: string;
+    description: string;
+}
+
+export const IWrappedHandlerGuard = (object: any): object is IWrappedHandler => {
+return typeof object === "object" &&
+    "url" in object && typeof object.url === "string" &&
+    "handler" in object &&
+        (typeof object.handler === "function" || object.handler instanceof Array) &&
+    "method" in object && typeof object.method === "string" &&
+        SupportedMethodsStringArray.indexOf(object.method) !== -1 &&
+    "name" in object && typeof object.name === "string" &&
+    "description" in object && typeof object.description === "string";
+};
+
+export interface IWrappedRouter extends IWrappedHandler {
+    handler: IWrappedHandler[];
+    method: "use";
+}
+
+export const IWrappedRouterGuard = (object: any): object is IWrappedRouter => {
+    return IWrappedHandlerGuard(object) && object.handler instanceof Array &&
+        object.method === "use";
+};
+
+export interface IWrappedErrorHandler extends IWrappedHandler {
+    handler: ErrorRequestHandler;
+}
+
+export const IWrappedErrorHandlerGuard = (object: any): object is IWrappedErrorHandler => {
+    return IWrappedHandlerGuard(object) && typeof object.handler === "function";
+};
+
+export interface IWrappedRequestHandler extends IWrappedHandler {
+    handler: RequestHandler;
+}
+
+export const IWrappedRequestHandlerGuard = (object: any): object is IWrappedRequestHandler => {
+    return IWrappedHandlerGuard(object) && typeof object.handler === "function";
+};
+
+export interface INameAccessor<T> {
+    name: (name: string) => T;
+}
+
+export interface IDescriptionAccessor<T> {
+    description: (description: string) => T;
+}
+
+export interface INameDescriptionAccessor {
+    name: (name: string) => IDescriptionAccessor<void>;
+    description: (description: string) => INameAccessor<void>;
+}
+
+// tslint:disable-next-line:max-classes-per-file
+export class ApplicationRouter {
+
+    public name: string = "";
+    public description: string = "";
+    public handler: IWrappedHandler[] = [];
+
+    constructor(name?: string, description?: string) {
+        this.name = name || "";
+        this.description = description || "";
+    }
+
+    /**
+     * get
+     */
+    public get(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("get", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * post
+     */
+    public post(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("post", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * put
+     */
+    public put(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("put", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * delete
+     */
+    public delete(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("delete", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * patch
+     */
+    public patch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("patch", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * options
+     */
+    public options(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("options", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * head
+     */
+    public head(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("head", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * checkout
+     */
+    public checkout(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("checkout", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * connect
+     */
+    public connect(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("connect", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * copy
+     */
+    public copy(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("copy", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * lock
+     */
+    public lock(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("lock", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * merge
+     */
+    public merge(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("merge", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * mkactivity
+     */
+    public mkactivity(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("mkactivity", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * mkcol
+     */
+    public mkcol(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("mkcol", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * move
+     */
+    public move(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("move", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * m-search
+     */
+    public msearch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("m-search", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * notify
+     */
+    public notify(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("notify", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * propfind
+     */
+    public propfind(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("propfind", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * proppatch
+     */
+    public proppatch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("proppatch", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * purge
+     */
+    public purge(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("purge", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * report
+     */
+    public report(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("report", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * search
+     */
+    public search(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("search", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * subscribe
+     */
+    public subscribe(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("subscribe", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * trace
+     */
+    public trace(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("trace", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * unlock
+     */
+    public unlock(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("unlock", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * unsubscribe
+     */
+    public unsubscribe(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("unsubscribe", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * use
+     */
+    public use(url: string, handler: AnyHandler | ApplicationRouter) {
+        if (typeof handler === "function") {
+            this.enroute("use", url, "", "", handler);
+            return this.buildNameDescriptionAccessor(this.handler.length - 1);
+        }
+
+        handler = handler as ApplicationRouter;
+        this.handler.push({
+            description: handler.description,
+            handler: handler.handler,
+            method: "use",
+            name: handler.name,
+            url,
+        });
+
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    private enroute(
+        method: SupportedMethods, url: string, name: string, description: string,
+        handler: ErrorRequestHandler | RequestHandler) {
+            this.handler.push({
+                description: description !== "" ? description : "",
+                handler,
+                method,
+                name: name !== "" ? name : "",
+                url,
+            });
+
+            // return the index of the inserted handler
+            return this.handler.length - 1;
+        }
+
+    private buildNameDescriptionAccessor(index: number): INameDescriptionAccessor {
+
+        const pureNameManipulation = (name: string) => { this.handler[index].name = name; };
+        const pureDescriptionManipulation = (description: string) => { this.handler[index].description = description; };
+
+        return {
+            description: (description: string) => {
+                pureDescriptionManipulation(description);
+                return { name: pureNameManipulation };
+            },
+            name: (name: string) => {
+                pureNameManipulation(name);
+                return { description: pureDescriptionManipulation };
+            },
+        };
     }
 }
