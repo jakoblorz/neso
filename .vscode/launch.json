@@ -7,10 +7,25 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch Program",
-            "program": "${workspaceFolder}/test.ts",
+            "name": "CLI: start ./test.js",
+            "program": "${workspaceFolder}/bin/scli.ts",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
+            ],
+            "args": [
+                "start ./test.js -p 8000 -v -c 3 -f"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "CLI: list ./test.js",
+            "program": "${workspaceFolder}/bin/scli.ts",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ],
+            "args": [
+                "list ./test.js"
             ]
         }
     ]

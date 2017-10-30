@@ -193,7 +193,7 @@ vorpal.command("start <path>", "build a expressjs app from the file and start it
             chalk.redBright(new Array(5 + 1).join(" ") + " - Worker") + "[" +
                 chalk.blueBright(process.pid + "") + "]";
         const xMasterTextIdent = (state: "run" | "dead") => state === "run" ?
-            chalk.greenBright(" > Master") + "[" +
+            chalk.greenBright("> Master") + "[" +
                 chalk.blueBright(process.pid + "") + "]" :
             chalk.redBright("> Master") + "[" +
                 chalk.blueBright(process.pid + "") + "]";

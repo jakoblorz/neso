@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "bin": {
-    "scirocco": "bin/cli.js"
+    "scirocco": "bin/scirocco-cli.js"
   },
   "scripts": {
     "postinstall": "tsc"
