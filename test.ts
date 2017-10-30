@@ -1,4 +1,5 @@
 import { Request } from "express";
+import * as morgan from "morgan";
 import { ApplicationRouter, ScaffoldedRequestHandler } from "./";
 
 class SimpleRequestHandler extends ScaffoldedRequestHandler<Request, { name: string }, { account: { id: string }}> {
@@ -16,6 +17,11 @@ class SimpleRequestHandler extends ScaffoldedRequestHandler<Request, { name: str
 }
 
 const app = new ApplicationRouter();
+
+app.use("/", morgan("dev"))
+    .name("morgan:logger")
+    .description("logs all incomming requests");
+
 app.get("/", new SimpleRequestHandler().obtainHandler())
     .name("get-account-from-name")
     .description("gets a account from the database by a given name");
