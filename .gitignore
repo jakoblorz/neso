@@ -56,3 +56,8 @@ typings/
 
 # dotenv environment variables file
 .env
+
+# ignore *.js, *.js.map and *.d.ts files
+*.js
+*.js.map
+*.d.ts

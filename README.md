@@ -1,134 +1,82 @@
 # scirocco
-add type guards to your expressjs request handlers
 
-**NOTICE: this module is currently completely untested - use with caution**
-## idea
-### recurring patterns
-If your have already developed a http-api, your are aware of the always returning pattern:
-1. request is recieved and checked if all necessary arguments were sent
-2. arguments get extracted
-3. **magic happens**
-4. result is packed in the response
-5. error evaluation
-6. response is being sent back
+## What is scirocco?
+scirocco is a (*new?*) turn on building function-based backend services:
+Each function will be split into different phases:
+1. **Data-Extraction** (method name: **extract**): The required Data for the callback
+is extracted from the request.
+2. **Format-Validation** (method name: **guard**): The extracted Data will be validated
+if format constraints are met.
+3. **Execution** (method name: **callback**): The callback will be called with the extracted Data.
 
-### abstracting the pattern
-This can be simplified, while also enhancing types. The following example will hash a password which is url-encoded - *insecure!*. Types were added sometimes to help understanding.
-1. create a SourceType and a TargetType for your callback action:
+## Architecture
+The current version is based on [**expressjs**](https://github.com/expressjs/express) thus **all
+middleware is compatible with scirocco's own router**. In fact, most of the routing-ideology of expressjs
+is still kept to allow better compatibility. Using [**Typescript**](http://www.typescriptlang.org/)
+and the **es6 async/await** syntax, callbacks are way more readable and **the "normal" expressjs look (so called callback-hell) is a thing of the past**. Furthermore, classes bring a more structured architecture into your application. Another great thing is **semantic error throwing**: (just import scirocco's own error and then you can do the following: `throw Errors.NotFoundError` from within any of the 3 phases)
+
+## Example
 ```typescript
-//hash.ts
-export interface IHashSource { password: string; }
-export interface IHashTarget { hash: string; salt: string; }
+
+// sample.ts
+
+import { Request } from "express";
+import { ApplicationRouter, ScaffoldedRequestHandler } from "scirocco";
+
+class SimpleRequestHandler extends ScaffoldedRequestHandler<
+    Request, { name: string }, { account: { id: string }}> {
+
+        /**
+         * Data-Extraction phase: extract the necessary data
+         * from the expressjs request
+         */
+        public extract(request: Request): { name: string; } {
+            return ({ name: request.query.name });
+        }
+
+        /**
+         * Format-Validation phase: check if the data is following
+         * your requirements
+         */
+        public guard(source: any): source is { name: string; } {
+            return typeof source === "object" &&
+                "name" in source && typeof source.name === "string";
+        }
+
+        /**
+         * Execution phase: use the extracted data to execute your
+         * code.
+         */
+        public callback(source: { name: string; }): { account: { id: string; }; } {
+            return ({ account: { id: source.name }});
+        }
+
+    }
+
+const app = new ApplicationRouter();
+
+app.get("/", new SimpleRequestHandler().obtainHandler())
+    .name("get-account-from-name")
+    .description("gets an account from the database by a given name");
+
+export const application = app;
 ```
-2. create a type-guard:
-```typescript
-//hash.ts
-const HashGuard = (object: any): object is IHashSource =>
-    "password" in object && typeof object.password === "string";
+Then you just need to compile your code and call it with the scirocco-cli (featuring **cluster-mode!**):
+```bash
+user@pc:~/$ scirocco start ./test.js -v -c 5 -p 8080 -f
+
+┌─┐┌─┐┬┬─┐┌─┐┌─┐┌─┐┌─┐
+└─┐│  │├┬┘│ ││  │  │ │
+└─┘└─┘┴┴└─└─┘└─┘└─┘└─┘
+
+> Importer[./test.js] found handlers (total of 1 on root level)
+      - get-account-from-name [GET /]: gets an account from the database by a given name
+
+
+> Master[23919] is running (planning 5 workers)
+      - Worker[23931] is running
+      - Worker[23949] is running
+      - Worker[23925] is running
+      - Worker[23938] is running
+      - Worker[23937] is running
 ```
-3. export the guard-secured callback:
-```typescript
-//hash.ts
-import * as crypto from "crypto";
-import { secure } from "scirocco";
-
-const hash = (payload: string) => {
-    const salt = crypto.randomBytes(Math.ceil(64 / 2)).toString("hex").slice(0, 64);
-    return { salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
-};
-
-export const callback = secure<IHashSource, IHashTarget>(
-    HashGuard, (source: IHashSource): IHashTarget => hash(source.password));
-```
-4. import the callback and the types into your expressjs router:
-```typescript
-// router.ts
-import { Request, Router } from "express";
-import { scaffold } from "scirocco";
-import { callback, IHashSource, IHashTarget } from "./hash";
-
-interface IHashResponse { hash: string; }
-
-const router: Router = Router();
-```
-5. scaffold the expressjs request-handler - using a construct-callback which selects the
-necessary request arguments (like req.query.password), the callback and a destruct-callback
-which reduces the result from the callback (destruct-callback is **optional**)
-```typescript
-// router.ts
-
-// construct callback
-const construct = (req: Request): IHashSource => ({ password: req.query.password });
-
-// destruct callback
-const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse =>
-    ({ hash: data.hash });
-
-// hook the scaffolded callback to GET /hash
-router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
-    construct, callback, destruct)); 
-```
-6. done! you now have a exception-stable, format-secure and type-asserted request handler to
-hash a password (**NOTICE: the hashing mechanism shown here might not be secure - do not copy & paste this example for production**)
-
-## full code example
-```typescript
-// hash.ts
-import * as crypto from "crypto";
-import { scaffold } from "scirocco";
-
-// transaction types - source and target
-export interface IHashSource { password: string; }
-export interface IHashTarget { hash: string; salt: string; }
-
-// function which hashes passwords using sha512 and a random salt
-const hash = (payload: string): IHashTarget => {
-    const salt = crypto.randomBytes(Math.ceil(64 / 2)).toString("hex").slice(0, 64);
-    return { salt, hash: crypto.createHmac("sha512", salt).update(payload).digest("hex") };
-};
-
-// function which checks for correct format
-const HashGuard = (object: any): object is IHashSource =>
-    "password" in object && typeof object.password === "string";
-
-// callback is a guarded callback transacting an IHashSource object to IHashTarget object
-export const callback = secure<IHashSource, IHashTarget>(HashGuard, (source: IHashSource) =>
-    hash(source.password));
-
-```
-```typescript
-// router.ts
-import { Request, Router } from "express";
-import { scaffold } from "scirocco";
-import { callback, IHashSource, IHashTarget } from "./hash";
-
-// type of the response body
-interface IHashResponse { hash: string; }
-
-// initialization of the expressjs router
-const router: Router = Router();
-
-
-// construct callback
-const construct = (req: Request): IHashSource => ({ password: req.query.password });
-
-// destruct callback
-const destruct = (data: IHashTarget, req: Request, res: Response): IHashResponse =>
-    ({ hash: data.hash });
-
-// hook the scaffolded callback to GET /hash
-router.get("/hash", scaffold<IHashSource, IHashTarget, IHashResponse>(
-    construct, callback, destruct)); 
-```
-
-## error handling
-errors can occur always thus they need proper handling - with this module it is very easy: 
-*you can throw any error everywhere (in the construct, guard, callback and destruct function): `throw NotFoundError`*. This module exports a few standard
-errors (*`FormatError`*, *`ForbiddenError`*, *`UnauthorizedError`*, *`NotFoundError`* and *`ServerError`*), but you can also
-create your own (**pull-request them?**) if you want - just use the *`ErrorType`* which is also exported.
-
-### scaffold error-arguments
-The scaffold function takes 6 arguments max. The first three are callbacks but the two after them are more interesting from an error-handling perspective:
-
-- `invokeNextOnError`: if invokeNextOnError is true, the next-callback from expressjs will be invoked if an error was thrown (it will be invoked with the error as first argument) instead of being sent back immediately - so you can add your own error-handler to the express instance. If an error was thrown which is not of the type `ErrorType`, the error will be wrapped into a new error object: `{ code: 500, status: "ServerError", error: e }` where `'e'` is the thrown error (only if `passPureErrors` is `true`). *default=`false`*
-- `passPureErrors`: select if errors that are not of the type `ErrorType` should be replaced with a ServerError. *default=`false`*

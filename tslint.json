@@ -5,8 +5,9 @@
     ],
     "jsRules": {},
     "rules": {
-        "interface-over-type-literal": false,
-        "align": false
+        "align": false,
+        "object-literal-sort-keys": false,
+        "no-console": false
     },
     "rulesDirectory": []
 }

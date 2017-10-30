@@ -1,27 +1,9 @@
-import { NextFunction, Request, RequestHandler, Response } from "express";
-
-/**
- * callback which transforms a source into a target
- */
-type Transaction<SourceType, TargetType> = (source: SourceType) =>
-    Promise<TargetType> | TargetType;
-
-/**
- * callback which transforms a source into a target
- * with additional arguments (e.q. res to set custom headers)
- */
-type Destruction<SourceType, TargetType> = (source: SourceType, req: Request, res: Response) =>
-    Promise<TargetType> | TargetType;
-
-/**
- * sugar - the same as Transaction but improves readability
- */
-type Construction<SourceType, TargetType> = Transaction<SourceType, TargetType>;
+import { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
 
 /**
  * all thrown errors should extends this type
  */
-export interface IErrorType {
+export interface IResponseRepresentation {
 
     /**
      * specify the http status code which
@@ -37,122 +19,24 @@ export interface IErrorType {
 }
 
 /**
- * add your own flavor to the factory
+ * extension of the IResponseRepresentation interface
+ * with added error capabilities
  */
-export interface IConfiguration {
+export interface IErrorType extends IResponseRepresentation {
 
     /**
-     * change the behavior if an error is being thrown/returned:
-     * TRUE will force the handler to invoke the next-callback
-     * with the error instead of responding to the client directly
+     * possible error
      */
-    invokeNextOnError?: boolean;
-
-    /**
-     * change the behavior during error handling:
-     * TRUE forces the handler to only wrap the error into
-     * a valid object which extends ErrorType.
-     * FALSE forces the handler to replace the error with
-     * a ServerError (500) - FALSE should be selected in
-     * productive environments
-     */
-    passPureErrors?: boolean;
+    error?: Error;
 }
 
 /**
- * scaffold a expressjs request handler - the phases construction,
- * transaction and destruction will bring more formality into your handler
+ * extension of the IResponseRepresentation interface
+ * with result field
  */
-type ScaffoldMethod = <SourceType, TargetType extends ResponseType, ResponseType>(
-
-    /**
-     * construction callback - convert the expressjs request into the
-     * required SourceType object for the operation
-     */
-    construct: Construction<Request, SourceType | IErrorType>,
-
-    /**
-     * transaction callback - actual processing happens here:
-     * use the arguments that the construction phase extracted
-     * from the request to achieve beautiful things!
-     */
-    transaction: Transaction<SourceType, TargetType | IErrorType>,
-
-    /**
-     * destruction callback - reduce the result of the transaction:
-     * remove user-sensitive data from the result, add custom headers
-     * to the response, add current user to the request object
-     */
-    destruct?: Destruction<TargetType, ResponseType | IErrorType>,
-
-    /**
-     * TRUE if the next callback should be invoked instead of sending a
-     * response to the client (the destruct/transaction callback
-     * result will be ignored)
-     */
-    middleware?: boolean,
-
-    /**
-     * set a custom http success code 200/201 etc.. if the execution succeeded
-     */
-    successCode?: number,
-) => RequestHandler;
-
-/**
- * scaffold a expressjs request handler - the phases construction,
- * transaction and destruction will bring more formality into your handler
- */
-type ConfiguredScaffoldMethod = <SourceType, TargetType extends ResponseType, ResponseType>(
-
-    /**
-     * construction callback - convert the expressjs request into the
-     * required SourceType object for the operation
-     */
-    construct: Construction<Request, SourceType | IErrorType>,
-
-    /**
-     * transaction callback - actual processing happens here:
-     * use the arguments that the construction phase extracted
-     * from the request to achieve beautiful things!
-     */
-    transaction: Transaction<SourceType, TargetType | IErrorType>,
-
-    /**
-     * destruction callback - reduce the result of the transaction:
-     * remove user-sensitive data from the result, add custom headers
-     * to the response, add current user to the request object
-     */
-    destruct?: Destruction<TargetType, ResponseType | IErrorType>,
-
-    /**
-     * change the behavior if an error is being thrown/returned:
-     * TRUE will force the handler to invoke the next-callback
-     * with the error instead of responding to the client directly
-     */
-    invokeNextOnError?: boolean,
-
-    /**
-     * change the behavior during error handling:
-     * TRUE forces the handler to only wrap the error into
-     * a valid object which extends ErrorType.
-     * FALSE forces the handler to replace the error with
-     * a ServerError (500) - FALSE should be selected in
-     * productive environments
-     */
-    passPureErrors?: boolean,
-
-    /**
-     * set a custom http success code 200/201 etc.. if the execution succeeded
-     */
-    customSuccessCode?: number,
-
-    /**
-     * TRUE if the next callback should be invoked instead of sending a
-     * response to the client (the destruct/transaction callback
-     * result will be ignored)
-     */
-    isMiddlewareCallback?: boolean,
-) => RequestHandler;
+export interface IResponse<T> extends IResponseRepresentation {
+    result: T;
+}
 
 // tslint:disable-next-line:no-namespace
 export namespace Errors {
@@ -170,269 +54,496 @@ export namespace Errors {
  */
 export const isErrorType = (object: any): object is IErrorType =>
     typeof object === "object" &&
-    "status" in object && typeof object.status === "string" &&
-    "code" in object && typeof object.code === "number";
+        "status" in object && typeof object.status === "string" &&
+        "code" in object && typeof object.code === "number";
 
 /**
- * respond to a request by sending json data
- * @param payload object which will be the body (json-encoded)
- * @param res expressjs response object
- * @param status http status code
+ * create a new expressjs request handler using evaluation stages
  */
-export const respond = <ResponseType>(payload: ResponseType, res: Response, status: number = 200) =>
-    res.status(status).json(payload);
-
-/**
- * call a awaitable callback which might throw errors
- * @param awaitable awaitable callback
- * @param argument arguments to call the callback with
- * @param passPureErrors switch if unrecognized errors should
- * be replaced with a ServerError (-> http error code 500)
- */
-export const evaluateAwaitable = async <X, Y> (awaitable: Transaction<X, Y | IErrorType>,
-    argument: X, passPureErrors: boolean,
-): Promise<Y | IErrorType> => {
-
-    // return the result of the awaitable if the execution
-    // went successful, catch possible errors
-    try { return await awaitable(argument); } catch (e) {
-
-        // check if the thrown error is of the type ErrorType
-        if (isErrorType(e)) {
-
-            // e is of the type ErrorType, immediate return is
-            // possible
-            return e;
-        }
-
-        // wrap the error into a new object which can be evaluated
-        // as of the type ErrorType
-        e = { code: Errors.ServerError.code, status: Errors.ServerError.status, error: e };
-
-        // check return switch - return the wrapped error or
-        // the ServerError as replacement
-        return passPureErrors ? e : Errors.ServerError;
-    }
-};
-
-/**
- * check if the result is an error type and process it if it is.
- * @param result object returned from the evaluateAwaitable function
- * @param req expressjs request object
- * @param res expressjs response object
- * @param next expressjs next-callback
- * @param invokeNextOnError switch to select behavior when errors occur
- */
-export const processEvaluationResult = <X> (result: X | IErrorType, req: Request, res: Response,
-    next: NextFunction, invokeNextOnError: boolean,
-): X | null => {
-
-    // is the result of type ErrorType and should
-    // the next callback be invoked
-    if (isErrorType(result) && invokeNextOnError) {
-        next(result);
-        return null;
-    }
-
-    // is the result of type ErrorType and the next
-    // callback should not be invoked
-    if (isErrorType(result)) {
-        respond(result, res, result.code);
-        return null;
-    }
-
-    // this function returns null if an error occured
-    // which was processed or something else (else is
-    // of type X) will be returned
-    return result;
-};
-
-/**
- * prepare (convert) the given object into a sendable response
- * @param obj object to convert
- */
-export const prepareResponseBody = <Type>(obj: Type, successCode: number = 200): IErrorType => {
-
-    // check if the code (http status code) needs to be set
-    if ((obj as any).code === undefined || typeof (obj as any).code !== "number") {
-        (obj as any).code = successCode;
-    }
-
-    // check if the status needs to be set
-    if ((obj as any).status === undefined || typeof (obj as any).status !== "string") {
-        (obj as any).status = "Success";
-    }
-
-    // return the altered object
-    return obj as any;
-};
-
-/**
- * scaffold a new expressjs request handler which is executing the different evaluation stages
- * automatically
- * @param construct callback which compiles the Request object into a RequestType object
- * @param transaction callback which will be executed
- * @param destruct callback which can be set to compile the result into a new object or
- * set custom values on the request object
- * @param invokeNextOnError flag which will change the control flow - instead of immediately
- * responding with and error if one is thrown, invoke the next callback with the error
- * @param passPureErrors flag which will indicate if errors which are not extending the
- * ErrorType should be replaced with a ServerError
- * @param customSuccessCode change the success code which is being sent if the callbacks
- * executed successfully
- * @param isMiddlewareCallback indicate to not respond but call next-callback when execution
- * successfully ends
- */
-export const scaffold: ConfiguredScaffoldMethod = <SourceType, TargetType extends ResponseType, ResponseType> (
-    construct: Construction<Request, SourceType | IErrorType>,
-    transaction: Transaction<SourceType, TargetType | IErrorType>,
-    destruct: Destruction<TargetType, ResponseType | IErrorType> =
-        (source, req, res) => source,
-    invokeNextOnError: boolean = false,
-    passPureErrors: boolean = false,
-    customSuccessCode: number = 200,
-    isMiddlewareCallback: boolean = false,
-): RequestHandler => {
+export abstract class ScaffoldedRequestHandler<RequestType extends Request, SourceType, ResultType> {
 
     /**
-     * @param awaitable awaitable callback
-     * @param argument arguments to call the callback with
-     * @see evaluateAwaitable()
+     * extract
      */
-    const evaluate = async <X, Y> (awaitable: Transaction<X, Y | IErrorType>,
-        argument: X): Promise<Y | IErrorType> =>
-            evaluateAwaitable(awaitable, argument, passPureErrors);
+    public abstract extract(request: RequestType): SourceType | Promise<SourceType>;
 
-    // return an expressjs request handler
-    return async (req: Request, res: Response, next: NextFunction) => {
+    /**
+     * guard
+     */
+    public abstract guard(source: any): source is SourceType;
 
-        /**
-         * @param result object returned from the evaluateAwaitable function
-         * @see processEvaluationResult()
-         */
-        const process = <X> (result: X | IErrorType) =>
-            processEvaluationResult(result, req, res, next, invokeNextOnError);
-
-        /**
-         * @param awaitable awaitable callback
-         * @param argument arguments to call the callback with
-         * @see process()
-         * @see processEvaluationResult()
-         * @see evaluate()
-         * @see evaluateAwaitable()
-         */
-        const executeStage = async <X, Y> (awaitable: Transaction<X, Y | IErrorType>,
-            argument: X): Promise<Y | null> =>
-                process(await evaluate(awaitable, argument));
-
-        // execute the construction phase - extract the arguments from the request
-        const source = await executeStage<Request, SourceType>(construct, req);
-        if (source === null) {
-            return;
-        }
-
-        // execute the transaction phase - process the arguments
-        const target = await executeStage<SourceType, TargetType>(transaction, source);
-        if (target === null) {
-            return;
-        }
-
-        /**
-         * destruct() callback wrapper to inject req, res
-         * @param argument target data from the transaction callback
-         * @see destruct()
-         */
-        const destruction = async (argument: TargetType) =>
-            destruct(argument, req, res);
-
-        // execute the destruction phase - reduce the result
-        const response = await executeStage<TargetType, ResponseType>(destruction, target);
-        if (response === null) {
-            return;
-        }
-
-        // if this is represents a middleware RequestHandler,
-        // do not respond to the client, call next() without any
-        // arguments instead
-        if (isMiddlewareCallback) {
-            next();
-            return;
-        }
-
-        // this represents not a middleware RequestHandler,
-        // respond with the response converted into a http application/json
-        // body to the client
-        const body = prepareResponseBody(response, customSuccessCode);
-        respond(body, res, body.code);
-        return;
-    };
-};
-
-/**
- * create a factory function which configures expressjs RequestHandlers
- * @param configuration add your own flavor
- */
-export const config = (configuration: IConfiguration): ScaffoldMethod =>
-    <SourceType, TargetType extends ResponseType, ResponseType>(
-        construct: Construction<Request, SourceType | IErrorType>,
-        transaction: Transaction<SourceType, TargetType | IErrorType>,
-        destruct: Destruction<TargetType, ResponseType | IErrorType>,
-        middleware: boolean = false,
-        successCode: number = 200,
-    ): RequestHandler =>
-        scaffold(construct, transaction, destruct, configuration.invokeNextOnError,
-            configuration.passPureErrors, successCode, middleware);
-
-/**
- * guard a callback which transforms a SourceType object int a TargetType object
- * @param secure callback to evaluate if the given object is a valid SourceType
- * @param callback callback which is being invoked only if the given object is a valid SourceType
- */
-export const guard = <SourceType, TargetType>(secure: (object: any) => object is SourceType,
-    callback: Transaction<SourceType, TargetType | IErrorType>,
-): Transaction<SourceType, TargetType | IErrorType> => {
-
-    // return a async callback which takes the source and calls the callback
-    // only if the guard (the secure callback) evaluates the source as valid
-    // otherwise throw a FormatError which will be caught if this callback
-    // is being hooked into the expressjs stack using the scaffold function
-    return async (source: SourceType): Promise<TargetType | IErrorType> => {
-
-        // check if the source object is a valid SourceType object
-        if (!secure(source)) {
-
-            // source object is not valid - throw an FormatError
-            throw Errors.FormatError;
-        }
-
-        // source object is a valid object - call the callback
-        // and return its promise
-        return callback(source);
-    };
-};
-
-// tslint:disable-next-line:max-line-length
-export abstract class ScaffoldedEventHandler<RequestType extends Request, SourceType, TargetType extends ResponseType, ResponseType> {
-
-    constructor(
-        private configuration: IConfiguration = { invokeNextOnError: false, passPureErrors: false },
-        private isMiddleware: boolean = false) { }
-
-    public abstract construct(request: RequestType):
-        SourceType | IErrorType | Promise<SourceType | IErrorType>;
-    public abstract guard(object: any): object is SourceType;
-    public abstract call(object: SourceType): TargetType | IErrorType | Promise<TargetType | IErrorType>;
-    public combine(result: TargetType, req: RequestType, res: Response):
-        ResponseType | IErrorType | Promise<ResponseType | IErrorType> {
-            return result;
-        }
+    /**
+     * callback
+     */
+    public abstract callback(source: SourceType): ResultType | Promise<ResultType>;
 
     /**
      * handler
+     * @param after specify a function which will be invoked after the callback was invoked
+     * @param invokedNextAfterExecution set flag to invoke the next function if the execution ended (e.g. as middleware)
+     * @param invokeNextOnError set flag to invoke the next function if an error occurs
+     * @param passPureErrors set flag not the exchange the errors with sendable error objects
      */
-    public handler() {
-        const transaction = guard(this.guard, this.call);
-        return scaffold<SourceType, TargetType, ResponseType>(
-            this.construct, transaction, this.combine, this.isMiddleware);
+    public obtainHandler(
+        after?: (result: ResultType, req: Request, res: Response, next: NextFunction) => void | Promise<void>,
+        invokedNextAfterExecution: boolean = false, invokeNextOnError: boolean = false,
+        passPureErrors: boolean = false): RequestHandler {
+
+            // backup this context
+            const that = this;
+
+            // build a async function which invokes the extract callback, the
+            // detects format errors by invoking the guard function and then
+            // invoking the actual callback
+            const transaction = async (request: RequestType): Promise<ResultType> => {
+
+                const source = await this.extract(request);
+
+                if (!this.guard(source)) {
+                    throw Errors.FormatError;
+                }
+
+                return this.callback(source);
+            };
+
+            // return a expressjs request handler
+            return async (req: Request, res: Response, next: NextFunction) => {
+
+                // call the transaction function while catching all possible errors
+                // detect errors and handle them according to the control flow switches
+                // (invokeNextAfterExecution, invokeNextOnError, passPureErrors)
+                const result = await this.fetchPossibleErrors<ResultType>(transaction, that, req as RequestType) as
+                    ResultType;
+                if (!this.proceedExecution<ResultType>(result, invokeNextOnError, passPureErrors, res, next)) {
+                    return;
+                }
+
+                // detect if a after function is present
+                if (after !== undefined) {
+
+                    // call the after function while catching all possible errors
+                    // detect errors and handle them according to the control flow switches
+                    // (invokeNextAfterExecution, invokeNextOnError, passPureErrors)
+                    const error = await this.fetchPossibleErrors<void>(after, that, result, req, res, next);
+                    if (!this.proceedExecution<void>(error, invokeNextOnError, passPureErrors, res, next)) {
+                        return;
+                    }
+                }
+
+                // call next if control flow switch requires it
+                if (invokedNextAfterExecution) {
+                    next();
+                    return;
+                }
+
+                // no next needed to be called, respond with success and
+                // the result
+                this.respond<IResponse<ResultType>>(
+                    { code: 200, result, status: "Success" }, res, 200);
+
+            };
+        }
+
+    /**
+     * invoke a awaitable function while catching all possible errors
+     * and replacing them with proper, sendable errors
+     * @param awaitable function that returns T when called with arguments
+     * @param context this context to invoke the awaitable function in
+     * @param args arguments to call the awaitable function with
+     */
+    private async fetchPossibleErrors<T>(
+        awaitable: (...args: any[]) => T | Promise<T>, context: any, ...args: any[]): Promise<T | IErrorType> {
+            try { return await awaitable.apply(context, args); } catch (e) {
+                if (isErrorType(e)) {
+                    return e;
+                }
+
+                return { code: Errors.ServerError.code, status: Errors.ServerError.status, error: e } as IErrorType;
+            }
+        }
+
+    /**
+     * detect errors in a result object and change behavior accordingly
+     * @param result object which can be the desired result or an error (either
+     * wrapped or completely pure)
+     * @param invokeNextOnError control-flow switch to invoke next if result is an error
+     * @param passPureErrors control-flow switch to not replace errors with sendable objects
+     * @param res expressjs response object
+     * @param next expressjs next function
+     */
+    private proceedExecution<T>(
+        result: T | IErrorType, invokeNextOnError: boolean,
+        passPureErrors: boolean, res: Response, next: NextFunction) {
+            if (isErrorType(result)) {
+
+                if (invokeNextOnError) {
+                    if (passPureErrors) {
+                        next(result.error);
+                        return false;
+                    }
+
+                    next(result);
+                    return false;
+                }
+
+                if (passPureErrors) {
+                    this.respond<{ error: Error | undefined }>({ error: result.error }, res, result.code);
+                    return false;
+                }
+
+                this.respond<IErrorType>(result, res, result.code);
+                return false;
+            }
+
+            return true;
+        }
+
+    private respond<ResponseType>(response: ResponseType, res: Response, status: number = 200) {
+        res.status(status).json(response);
+    }
+}
+
+export type SupportedMethods =
+    "get" | "post" | "put" | "delete" | "patch" | "options" | "head" | "use" |
+    "checkout" | "connect" | "copy" | "lock" | "merge" | "mkactivity" | "mkcol" | "move" |
+    "m-search" | "notify" | "propfind" | "proppatch" | "purge" | "report" | "search" | "subscribe" |
+    "trace" | "unlock" | "unsubscribe";
+const SupportedMethodsStringArray = [
+    "get" , "post" , "put" , "delete" , "patch" , "options" , "head" , "use" ,
+    "checkout" , "connect" , "copy" , "lock" , "merge" , "mkactivity" , "mkcol" , "move" ,
+    "m-search" , "notify" , "propfind" , "proppatch" , "purge" , "report" , "search" , "subscribe" ,
+    "trace" , "unlock" , "unsubscribe"];
+
+export type AnyHandler = RequestHandler | ErrorRequestHandler;
+
+export interface IWrappedHandler {
+    url: string;
+    handler: ErrorRequestHandler | RequestHandler | IWrappedHandler[];
+    method: SupportedMethods;
+    name: string;
+    description: string;
+}
+
+export const IWrappedHandlerGuard = (object: any): object is IWrappedHandler => {
+return typeof object === "object" &&
+    "url" in object && typeof object.url === "string" &&
+    "handler" in object &&
+        (typeof object.handler === "function" || object.handler instanceof Array) &&
+    "method" in object && typeof object.method === "string" &&
+        SupportedMethodsStringArray.indexOf(object.method) !== -1 &&
+    "name" in object && typeof object.name === "string" &&
+    "description" in object && typeof object.description === "string";
+};
+
+export interface IWrappedRouter extends IWrappedHandler {
+    handler: IWrappedHandler[];
+    method: "use";
+}
+
+export const IWrappedRouterGuard = (object: any): object is IWrappedRouter => {
+    return IWrappedHandlerGuard(object) && object.handler instanceof Array &&
+        object.method === "use";
+};
+
+export interface IWrappedErrorHandler extends IWrappedHandler {
+    handler: ErrorRequestHandler;
+}
+
+export const IWrappedErrorHandlerGuard = (object: any): object is IWrappedErrorHandler => {
+    return IWrappedHandlerGuard(object) && typeof object.handler === "function";
+};
+
+export interface IWrappedRequestHandler extends IWrappedHandler {
+    handler: RequestHandler;
+}
+
+export const IWrappedRequestHandlerGuard = (object: any): object is IWrappedRequestHandler => {
+    return IWrappedHandlerGuard(object) && typeof object.handler === "function";
+};
+
+export interface INameAccessor<T> {
+    name: (name: string) => T;
+}
+
+export interface IDescriptionAccessor<T> {
+    description: (description: string) => T;
+}
+
+export interface INameDescriptionAccessor {
+    name: (name: string) => IDescriptionAccessor<void>;
+    description: (description: string) => INameAccessor<void>;
+}
+
+// tslint:disable-next-line:max-classes-per-file
+export class ApplicationRouter {
+
+    public name: string = "";
+    public description: string = "";
+    public handler: IWrappedHandler[] = [];
+
+    constructor(name?: string, description?: string) {
+        this.name = name || "";
+        this.description = description || "";
+    }
+
+    /**
+     * get
+     */
+    public get(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("get", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * post
+     */
+    public post(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("post", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * put
+     */
+    public put(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("put", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * delete
+     */
+    public delete(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("delete", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * patch
+     */
+    public patch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("patch", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * options
+     */
+    public options(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("options", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * head
+     */
+    public head(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("head", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * checkout
+     */
+    public checkout(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("checkout", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * connect
+     */
+    public connect(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("connect", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * copy
+     */
+    public copy(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("copy", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * lock
+     */
+    public lock(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("lock", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * merge
+     */
+    public merge(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("merge", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * mkactivity
+     */
+    public mkactivity(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("mkactivity", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * mkcol
+     */
+    public mkcol(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("mkcol", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * move
+     */
+    public move(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("move", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * m-search
+     */
+    public msearch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("m-search", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * notify
+     */
+    public notify(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("notify", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * propfind
+     */
+    public propfind(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("propfind", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * proppatch
+     */
+    public proppatch(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("proppatch", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * purge
+     */
+    public purge(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("purge", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * report
+     */
+    public report(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("report", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * search
+     */
+    public search(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("search", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * subscribe
+     */
+    public subscribe(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("subscribe", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * trace
+     */
+    public trace(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("trace", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * unlock
+     */
+    public unlock(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("unlock", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * unsubscribe
+     */
+    public unsubscribe(url: string, handler: AnyHandler): INameDescriptionAccessor {
+        this.enroute("unsubscribe", url, "", "", handler);
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    /**
+     * use
+     */
+    public use(url: string, handler: AnyHandler | ApplicationRouter) {
+        if (typeof handler === "function") {
+            this.enroute("use", url, "", "", handler);
+            return this.buildNameDescriptionAccessor(this.handler.length - 1);
+        }
+
+        handler = handler as ApplicationRouter;
+        this.handler.push({
+            description: handler.description,
+            handler: handler.handler,
+            method: "use",
+            name: handler.name,
+            url,
+        });
+
+        return this.buildNameDescriptionAccessor(this.handler.length - 1);
+    }
+
+    private enroute(
+        method: SupportedMethods, url: string, name: string, description: string,
+        handler: ErrorRequestHandler | RequestHandler) {
+            this.handler.push({
+                description: description !== "" ? description : "",
+                handler,
+                method,
+                name: name !== "" ? name : "",
+                url,
+            });
+
+            // return the index of the inserted handler
+            return this.handler.length - 1;
+        }
+
+    private buildNameDescriptionAccessor(index: number): INameDescriptionAccessor {
+
+        const pureNameManipulation = (name: string) => { this.handler[index].name = name; };
+        const pureDescriptionManipulation = (description: string) => { this.handler[index].description = description; };
+
+        return {
+            description: (description: string) => {
+                pureDescriptionManipulation(description);
+                return { name: pureNameManipulation };
+            },
+            name: (name: string) => {
+                pureNameManipulation(name);
+                return { description: pureDescriptionManipulation };
+            },
+        };
     }
 }
