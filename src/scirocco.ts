@@ -63,8 +63,9 @@ export const isErrorType = (object: any): object is IErrorType =>
  * @param res expressjs response object
  * @param status http status indicator
  */
-export const respond = <ResponseType> (response: ResponseType, res: Response, status: number = 200) =>
+export const respond = <ResponseType> (response: ResponseType, res: Response, status: number = 200) => {
     res.status(status).json(response);
+};
 
 /**
  * invoke a awaitable function while catching all possible errors
