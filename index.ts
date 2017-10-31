@@ -22,12 +22,15 @@
  * SOFTWARE.
  *
  */
-
-export {
+import { NextFunction, Request, Response } from "express";
+import {
     ApplicationRouter,
-    Errors,
-    IErrorType,
-    isErrorType,
+    Errors as ErrorCollection,
+    obtainHandler,
     ScaffoldedRequestHandler,
-    scirocco,
 } from "./src/scirocco";
+export { ApplicationRouter } from "./src/scirocco";
+export const scirocco = ApplicationRouter;
+export const RequestHandler = ScaffoldedRequestHandler;
+export const createHandler = obtainHandler;
+export const Errors = ErrorCollection;

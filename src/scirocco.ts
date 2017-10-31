@@ -20,18 +20,6 @@ export interface IResponseRepresentation {
 
 /**
  * extension of the IResponseRepresentation interface
- * with added error capabilities
- */
-export interface IErrorType extends IResponseRepresentation {
-
-    /**
-     * possible error
-     */
-    error?: Error;
-}
-
-/**
- * extension of the IResponseRepresentation interface
  * with result field
  */
 export interface IResponse<T> extends IResponseRepresentation {
@@ -40,22 +28,35 @@ export interface IResponse<T> extends IResponseRepresentation {
 
 // tslint:disable-next-line:no-namespace
 export namespace Errors {
+
+    /**
+     * extension of the IResponseRepresentation interface
+     * with added error capabilities
+     */
+    export interface IErrorType extends IResponseRepresentation {
+
+        /**
+         * possible error
+         */
+        error?: Error;
+    }
+
     export const FormatError: IErrorType = { code: 400, status: "Format Error" };
     export const UnauthorizedError: IErrorType = { code: 401, status: "Unauthorized Error" };
     export const ForbiddenError: IErrorType = { code: 403, status: "Forbidden Error" };
     export const NotFoundError: IErrorType = { code: 404, status: "Not Found Error" };
     export const ServerError: IErrorType = { code: 500, status: "Server Error" };
-}
 
-/**
- * check if the given object is a object containing the ErrorType
- * keys with the correct types
- * @param object object to test
- */
-export const isErrorType = (object: any): object is IErrorType =>
-    typeof object === "object" &&
-        "status" in object && typeof object.status === "string" &&
-        "code" in object && typeof object.code === "number";
+    /**
+     * check if the given object is a object containing the ErrorType
+     * keys with the correct types
+     * @param object object to test
+     */
+    export const isErrorType = (object: any): object is IErrorType =>
+        typeof object === "object" &&
+            "status" in object && typeof object.status === "string" &&
+            "code" in object && typeof object.code === "number";
+}
 
 /**
  * respond with json data
@@ -77,11 +78,11 @@ export const respond = <ResponseType> (response: ResponseType, res: Response, st
 export const fetchPossibleErrors = async <T> (
     awaitable: (...args: any[]) => T | Promise<T>, context: any, ...args: any[]) => {
         try { return await awaitable.apply(context, args); } catch (e) {
-            if (isErrorType(e)) {
+            if (Errors.isErrorType(e)) {
                 return e;
             }
 
-            return { code: Errors.ServerError.code, status: Errors.ServerError.status, error: e } as IErrorType;
+            return { code: Errors.ServerError.code, status: Errors.ServerError.status, error: e } as Errors.IErrorType;
         }
     };
 
@@ -95,9 +96,9 @@ export const fetchPossibleErrors = async <T> (
  * @param next expressjs next function
  */
 export const proceedExecution = <T> (
-    result: T | IErrorType, invokeNextOnError: boolean,
+    result: T | Errors.IErrorType, invokeNextOnError: boolean,
     passPureErrors: boolean, res: Response, next: NextFunction) => {
-        if (isErrorType(result)) {
+        if (Errors.isErrorType(result)) {
 
             if (invokeNextOnError) {
                 if (passPureErrors) {
@@ -114,14 +115,14 @@ export const proceedExecution = <T> (
                 return false;
             }
 
-            respond<IErrorType>(result, res, result.code);
+            respond<Errors.IErrorType>(result, res, result.code);
             return false;
         }
 
         return true;
     };
 
-export const scirocco = <RequestType extends Request, SourceType, ResultType> (
+export const obtainHandler = <RequestType extends Request, SourceType, ResultType> (
     extract: (request: RequestType) =>
         SourceType | Promise<SourceType>,
     guard: (source: any) =>
@@ -224,7 +225,7 @@ export abstract class ScaffoldedRequestHandler<RequestType extends Request, Sour
         invokeNextOnError: boolean = false,
         passPureErrors: boolean = false,
         successCode: number = 200): RequestHandler {
-            return scirocco(this.extract, this.guard, this.callback,
+            return obtainHandler(this.extract, this.guard, this.callback,
                 after, invokeNextAfterExecution, invokeNextOnError, passPureErrors, successCode, this);
         }
 }

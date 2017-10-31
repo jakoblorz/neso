@@ -1,8 +1,8 @@
 import { Request } from "express";
 import * as morgan from "morgan";
-import { ApplicationRouter, ScaffoldedRequestHandler } from "./";
+import { ApplicationRouter, RequestHandler, scirocco } from "./";
 
-class SimpleRequestHandler extends ScaffoldedRequestHandler<Request, { name: string }, { account: { id: string }}> {
+class SimpleRequestHandler extends RequestHandler<Request, { name: string }, { account: { id: string }}> {
     public extract(request: Request): { name: string; } {
         return ({ name: request.query.name });
     }
@@ -16,7 +16,7 @@ class SimpleRequestHandler extends ScaffoldedRequestHandler<Request, { name: str
 
 }
 
-const app = new ApplicationRouter();
+const app = new scirocco();
 
 app.use("/", morgan("dev"))
     .name("morgan:logger")
