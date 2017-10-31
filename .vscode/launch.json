@@ -8,7 +8,7 @@
             "type": "node",
             "request": "launch",
             "name": "CLI: start ./test.js",
-            "program": "${workspaceFolder}/bin/scli.ts",
+            "program": "${workspaceFolder}/bin/scirocco-cli.ts",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
@@ -20,7 +20,7 @@
             "type": "node",
             "request": "launch",
             "name": "CLI: list ./test.js",
-            "program": "${workspaceFolder}/bin/scli.ts",
+            "program": "${workspaceFolder}/bin/scirocco-cli.ts",
             "outFiles": [
                 "${workspaceFolder}/**/*.js"
             ],
