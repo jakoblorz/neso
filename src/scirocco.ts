@@ -76,7 +76,7 @@ export const respond = <ResponseType> (response: ResponseType, res: Response, st
  * @param args arguments to call the awaitable function with
  */
 export const fetchPossibleErrors = async <T> (
-    awaitable: (...args: any[]) => T | Promise<T>, context: any, ...args: any[]) => {
+    awaitable: (...args: any[]) => T | Promise<T>, context: any, ...args: any[]): Promise<T | Errors.IErrorType> => {
         try { return await awaitable.apply(context, args); } catch (e) {
             if (Errors.isErrorType(e)) {
                 return e;
