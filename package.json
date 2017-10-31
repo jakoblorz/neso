@@ -7,7 +7,10 @@
     "scirocco": "bin/scirocco-cli.js"
   },
   "scripts": {
-    "postinstall": "tsc"
+    "build": "tsc",
+    "postinstall": "npm run build",
+    "pretest": "npm run build",
+    "test": "find ./src -name '*.test.js' | xargs mocha -R spec"
   },
   "repository": {
     "type": "git",
