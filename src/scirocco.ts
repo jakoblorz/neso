@@ -121,7 +121,7 @@ export const proceedExecution = <T> (
         return true;
     };
 
-export const obtainHandler = <RequestType extends Request, SourceType, ResultType> (
+export const scirocco = <RequestType extends Request, SourceType, ResultType> (
     extract: (request: RequestType) =>
         SourceType | Promise<SourceType>,
     guard: (source: any) =>
@@ -224,7 +224,7 @@ export abstract class ScaffoldedRequestHandler<RequestType extends Request, Sour
         invokeNextOnError: boolean = false,
         passPureErrors: boolean = false,
         successCode: number = 200): RequestHandler {
-            return obtainHandler(this.extract, this.guard, this.callback,
+            return scirocco(this.extract, this.guard, this.callback,
                 after, invokeNextAfterExecution, invokeNextOnError, passPureErrors, successCode, this);
         }
 }

@@ -29,5 +29,5 @@ export {
     IErrorType,
     isErrorType,
     ScaffoldedRequestHandler,
-    obtainHandler,
+    scirocco,
 } from "./src/scirocco";
