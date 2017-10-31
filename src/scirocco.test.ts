@@ -1,6 +1,8 @@
 import * as assert from "assert";
 import * as mocha from "mocha";
 
+import { NextFunction, Request, Response } from "express";
+
 import * as sci from "./scirocco";
 
 describe("Errors", async () => {
@@ -34,4 +36,43 @@ describe("fetchPossibleErrors<T>()", async () => {
         assert.equal(sci.Errors.isErrorType(result), true);
         assert.deepEqual(result.error, error);
     });
+});
+
+describe("ApplicationRouter", async () => {
+
+    const router = new sci.ApplicationRouter();
+
+    sci.SupportedMethodsStringArray
+        .filter((method) => method !== "use")
+        .forEach((method) => {
+            it("should support " + method + " http method", async () => {
+
+                const routerHandlerLengthBefore = router.handler.length;
+                const accessors = (router as any)[method === "m-search" ? "msearch" : method](
+                     "/", (req: Request, res: Response, next: NextFunction) => null);
+
+                assert.equal("name" in accessors, true);
+                assert.equal("description" in accessors, true);
+
+                assert.equal(routerHandlerLengthBefore + 1, router.handler.length);
+                assert.equal(router.handler[router.handler.length - 1].name, "");
+                assert.equal(router.handler[router.handler.length - 1].description, "");
+                assert.equal(router.handler[router.handler.length - 1].method, method);
+
+                const stage1AccessorDescription = accessors.name("altered name 1");
+                const stage1AccessorName = accessors.description("altered description 1");
+                assert.equal(router.handler[router.handler.length - 1].name, "altered name 1");
+                assert.equal(router.handler[router.handler.length - 1].description, "altered description 1");
+
+                assert.equal("name" in stage1AccessorDescription, false);
+                assert.equal("description" in stage1AccessorDescription, true);
+                assert.equal("name" in stage1AccessorName, true);
+                assert.equal("description" in stage1AccessorName, false);
+
+                stage1AccessorDescription.description("altered description 2");
+                stage1AccessorName.name("altered name 2");
+                assert.equal(router.handler[router.handler.length - 1].name, "altered name 2");
+                assert.equal(router.handler[router.handler.length - 1].description, "altered description 2");
+            });
+        });
 });

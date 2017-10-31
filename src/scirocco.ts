@@ -235,7 +235,7 @@ export type SupportedMethods =
     "checkout" | "connect" | "copy" | "lock" | "merge" | "mkactivity" | "mkcol" | "move" |
     "m-search" | "notify" | "propfind" | "proppatch" | "purge" | "report" | "search" | "subscribe" |
     "trace" | "unlock" | "unsubscribe";
-const SupportedMethodsStringArray = [
+export const SupportedMethodsStringArray = [
     "get" , "post" , "put" , "delete" , "patch" , "options" , "head" , "use" ,
     "checkout" , "connect" , "copy" , "lock" , "merge" , "mkactivity" , "mkcol" , "move" ,
     "m-search" , "notify" , "propfind" , "proppatch" , "purge" , "report" , "search" , "subscribe" ,
