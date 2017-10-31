@@ -23,4 +23,11 @@
  *
  */
 
-export { ApplicationRouter, Errors, IErrorType, isErrorType, ScaffoldedRequestHandler } from "./src/scirocco";
+export {
+    ApplicationRouter,
+    Errors,
+    IErrorType,
+    isErrorType,
+    ScaffoldedRequestHandler,
+    obtainHandler,
+} from "./src/scirocco";
