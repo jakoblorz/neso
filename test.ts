@@ -1,6 +1,6 @@
 import { Request } from "express";
 import * as morgan from "morgan";
-import { ApplicationRouter, RequestHandler, scirocco } from "./";
+import { ApplicationRouter, createHandler, RequestHandler, scirocco } from "./";
 
 class SimpleRequestHandler extends RequestHandler<Request, { name: string }, { account: { id: string }}> {
     public extract(request: Request): { name: string; } {
@@ -16,6 +16,11 @@ class SimpleRequestHandler extends RequestHandler<Request, { name: string }, { a
 
 }
 
+const handler = createHandler<Request, { name: string }, { account: { id: string }}>(
+    (request) => ({ name: request.query.name }),
+    (source): source is { name: string } => typeof source === "object" && "name" in source,
+    (source) => ({ account: { id: source.name }}));
+
 const app = new scirocco();
 
 app.use("/", morgan("dev"))
@@ -24,6 +29,10 @@ app.use("/", morgan("dev"))
 
 app.get("/", new SimpleRequestHandler().obtainHandler())
     .name("get-account-from-name")
+    .description("gets a account from the database by a given name");
+
+app.get("/name", handler)
+    .name("get-account-from-name-v2")
     .description("gets a account from the database by a given name");
 
 export const application = app;
