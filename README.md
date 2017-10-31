@@ -1,5 +1,5 @@
 # scirocco
-
+[![Build Status](https://travis-ci.org/jakoblorz/scirocco.svg?branch=master)](https://travis-ci.org/jakoblorz/scirocco)
 ## What is scirocco?
 scirocco is a (*new?*) turn on building function-based backend services:
 Each function will be split into different phases:
