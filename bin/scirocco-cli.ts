@@ -29,6 +29,7 @@ import * as chalkDep from "chalk";
 import * as cluster from "cluster";
 import * as express from "express";
 import * as http from "http";
+import { IncomingMessage, ServerResponse } from "http";
 import * as os from "os";
 import * as path from "path";
 import { IWrappedErrorHandler, IWrappedHandler, IWrappedRequestHandler, IWrappedRouter } from "../src/scirocco";
@@ -122,7 +123,7 @@ const printHandlers = (handlerList: IWrappedHandler[], file: string): void => {
  * @param handlers list of all imported handlers
  * @param router router object which will recieve all handlers
  */
-const buildExpressJSStackFromHandlerList = (handlers: IWrappedHandler[], router: express.Router): express.Router => {
+const buildExpressJSStackFromHandlerList = <X extends express.Router>(handlers: IWrappedHandler[], router: X): X => {
 
     // iterate over all handlers
     for (const handler of handlers) {
@@ -279,10 +280,10 @@ vorpal.command("start <path>", "build a expressjs app from the file and start it
         if (cluster.isWorker) {
 
             // build a expressjs worker-app
-            const worker = buildExpressJSStackFromHandlerList(handlers, express()) as express.Application;
+            const worker = buildExpressJSStackFromHandlerList(handlers, express());
 
             // start the http server from the generated expressjs instance
-            http.createServer(worker).listen(port, hostname, () => {
+            worker.listen(port, hostname, () => {
                 console.log(xWorkerTextIdent("run") + " is running");
             });
         }

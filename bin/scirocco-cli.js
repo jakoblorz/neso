@@ -4,7 +4,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var chalkDep = require("chalk");
 var cluster = require("cluster");
 var express = require("express");
-var http = require("http");
 var os = require("os");
 var path = require("path");
 var scirocco_1 = require("../src/scirocco");
@@ -213,7 +212,7 @@ vorpal.command("start <path>", "build a expressjs app from the file and start it
         // build a expressjs worker-app
         var worker = buildExpressJSStackFromHandlerList(handlers, express());
         // start the http server from the generated expressjs instance
-        http.createServer(worker).listen(port, hostname, function () {
+        worker.listen(port, hostname, function () {
             console.log(xWorkerTextIdent("run") + " is running");
         });
     }
