@@ -75,29 +75,6 @@ var printHandlers = function (handlerList, file) {
     console.log("");
 };
 /**
- * connect all handlers to a expressjs router instance
- * @param handlers list of all imported handlers
- * @param router router object which will recieve all handlers
- */
-exports.buildExpressJSStackFromHandlerList = function (handlers, router) {
-    // iterate over all handlers
-    for (var _i = 0, handlers_1 = handlers; _i < handlers_1.length; _i++) {
-        var handler = handlers_1[_i];
-        // different processing depending on wether the handler is
-        // a router or just a plain handler
-        if (typeof handler.handler === "function") {
-            router[handler.method](handler.url, handler.handler);
-        }
-        else {
-            // recursive-call of this function: build a router for the given set of
-            // handler-objects
-            var sr = exports.buildExpressJSStackFromHandlerList(handler.handler, express.Router());
-            router[handler.method](handler.url, sr);
-        }
-    }
-    return router;
-};
-/**
  * import a AppWrapper instance and check its validity
  * @param link path to the import file
  */
@@ -210,7 +187,7 @@ vorpal.command("start <path>", "build a expressjs app from the file and start it
     // create the server instance only if this process is a worker process
     if (cluster.isWorker) {
         // build a expressjs worker-app
-        var worker = exports.buildExpressJSStackFromHandlerList(handlers, express());
+        var worker = scirocco_1.createApplication(handlers, express());
         // start the http server from the generated expressjs instance
         worker.listen(port, hostname, function () {
             console.log(xWorkerTextIdent("run") + " is running");

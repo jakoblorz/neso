@@ -30,10 +30,8 @@ import {
     obtainHandler,
     ScaffoldedRequestHandler,
 } from "./src/scirocco";
-export { ApplicationRouter } from "./src/scirocco";
-import { buildExpressJSStackFromHandlerList } from "./bin/scirocco-cli";
+export { ApplicationRouter, createApplication } from "./src/scirocco";
 export const scirocco = ApplicationRouter;
 export const RequestHandler = ScaffoldedRequestHandler;
 export const createHandler = obtainHandler;
 export const Errors = ErrorCollection;
-export const createApplication = buildExpressJSStackFromHandlerList;

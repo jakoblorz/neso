@@ -33,7 +33,8 @@ import { IncomingMessage, ServerResponse } from "http";
 import * as os from "os";
 import * as path from "path";
 import { IWrappedErrorHandler, IWrappedHandler, IWrappedRequestHandler, IWrappedRouter } from "../src/scirocco";
-import { IWrappedErrorHandlerGuard, IWrappedRequestHandlerGuard, IWrappedRouterGuard } from "../src/scirocco";
+import { createApplication, IWrappedErrorHandlerGuard, IWrappedRequestHandlerGuard,
+    IWrappedRouterGuard } from "../src/scirocco";
 
 const chalk = chalkDep.default;
 
@@ -117,33 +118,6 @@ const printHandlers = (handlerList: IWrappedHandler[], file: string): void => {
     console.log("");
     console.log("");
 };
-
-/**
- * connect all handlers to a expressjs router instance
- * @param handlers list of all imported handlers
- * @param router router object which will recieve all handlers
- */
-export const buildExpressJSStackFromHandlerList = <X extends express.Router>(
-    handlers: IWrappedHandler[], router: X): X => {
-
-        // iterate over all handlers
-        for (const handler of handlers) {
-
-            // different processing depending on wether the handler is
-            // a router or just a plain handler
-            if (typeof handler.handler === "function") {
-                router[handler.method](handler.url, handler.handler);
-
-            } else {
-                // recursive-call of this function: build a router for the given set of
-                // handler-objects
-                const sr = buildExpressJSStackFromHandlerList(handler.handler as IWrappedHandler[], express.Router());
-                router[handler.method](handler.url, sr);
-            }
-        }
-
-        return router;
-    };
 
 /**
  * import a AppWrapper instance and check its validity
@@ -281,7 +255,7 @@ vorpal.command("start <path>", "build a expressjs app from the file and start it
         if (cluster.isWorker) {
 
             // build a expressjs worker-app
-            const worker = buildExpressJSStackFromHandlerList(handlers, express());
+            const worker = createApplication(handlers, express());
 
             // start the http server from the generated expressjs instance
             worker.listen(port, hostname, () => {

@@ -23,7 +23,7 @@
  *
  */
 
-import { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response } from "express";
+import { ErrorRequestHandler, NextFunction, Request, RequestHandler, Response, Router } from "express";
 
 /**
  * all thrown errors should extends this type
@@ -599,3 +599,30 @@ export class ApplicationRouter {
         };
     }
 }
+
+/**
+ * connect all handlers to a expressjs router instance
+ * @param handlers list of all imported handlers
+ * @param router router object which will recieve all handlers
+ */
+export const createApplication = <X extends Router>(
+   handlers: IWrappedHandler[], router: X): X => {
+
+       // iterate over all handlers
+       for (const handler of handlers) {
+
+           // different processing depending on wether the handler is
+           // a router or just a plain handler
+           if (typeof handler.handler === "function") {
+               router[handler.method](handler.url, handler.handler);
+
+           } else {
+               // recursive-call of this function: build a router for the given set of
+               // handler-objects
+               const sr = createApplication(handler.handler as IWrappedHandler[], Router());
+               router[handler.method](handler.url, sr);
+           }
+       }
+
+       return router;
+   };
