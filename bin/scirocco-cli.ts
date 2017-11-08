@@ -123,26 +123,27 @@ const printHandlers = (handlerList: IWrappedHandler[], file: string): void => {
  * @param handlers list of all imported handlers
  * @param router router object which will recieve all handlers
  */
-const buildExpressJSStackFromHandlerList = <X extends express.Router>(handlers: IWrappedHandler[], router: X): X => {
+export const buildExpressJSStackFromHandlerList = <X extends express.Router>(
+    handlers: IWrappedHandler[], router: X): X => {
 
-    // iterate over all handlers
-    for (const handler of handlers) {
+        // iterate over all handlers
+        for (const handler of handlers) {
 
-        // different processing depending on wether the handler is
-        // a router or just a plain handler
-        if (typeof handler.handler === "function") {
-            router[handler.method](handler.url, handler.handler);
+            // different processing depending on wether the handler is
+            // a router or just a plain handler
+            if (typeof handler.handler === "function") {
+                router[handler.method](handler.url, handler.handler);
 
-        } else {
-            // recursive-call of this function: build a router for the given set of
-            // handler-objects
-            const sr = buildExpressJSStackFromHandlerList(handler.handler as IWrappedHandler[], express.Router());
-            router[handler.method](handler.url, sr);
+            } else {
+                // recursive-call of this function: build a router for the given set of
+                // handler-objects
+                const sr = buildExpressJSStackFromHandlerList(handler.handler as IWrappedHandler[], express.Router());
+                router[handler.method](handler.url, sr);
+            }
         }
-    }
 
-    return router;
-};
+        return router;
+    };
 
 /**
  * import a AppWrapper instance and check its validity
